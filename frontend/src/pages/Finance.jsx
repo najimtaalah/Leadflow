@@ -393,6 +393,16 @@ export default function Finance() {
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ fontWeight: 700, fontSize: '.88rem', flex: 1 }}>{TAB_LABELS[activeTab]}</span>
+          {activeTab === 'encaissements' && canWrite && (
+            <a
+              href={`/api/finance/export-encaissements-csv`}
+              download
+              className="btn btn-sm"
+              style={{ fontSize: '.75rem', textDecoration: 'none' }}
+            >
+              ⬇️ Export CSV
+            </a>
+          )}
           <div className="search-box">
             <span style={{ fontSize: 13, color: 'var(--txt3)' }}>🔍</span>
             <input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} />

@@ -255,6 +255,46 @@ const DossiersController = {
 
       logger.info('Dossier validé', { dossier_id: id, by: req.user.id });
 
+      // Notifications automatiques après validation
+      try {
+        const dossier = await DossierModel.findById(id);
+        if (dossier) {
+          const NotificationService = require('../services/notificationService');
+          const formation = dossier.formation_souhaitee || 'votre formation';
+          const nomApprenant = `${dossier.prenom || ''} ${dossier.nom || ''}`.trim();
+
+          // Email apprenant
+          if (dossier.email) {
+            await NotificationService.sendEmail({
+              to:         dossier.email,
+              subject:    `Votre dossier ${formation} a été validé`,
+              body:       `Bonjour ${nomApprenant},\n\nNous avons le plaisir de vous informer que votre dossier pour la formation "${formation}" a été validé.\n\nNous vous contacterons prochainement pour la suite de votre parcours.\n\nCordialement,\nL'équipe pédagogique`,
+              dossier_id: id,
+              type:       'validation_dossier_apprenant',
+            });
+          }
+
+          // Email commercial (vendeur)
+          if (dossier.vendeur_id) {
+            const [[vendeur]] = await db.query(
+              'SELECT email, nom, prenom FROM users WHERE id = ? LIMIT 1',
+              [dossier.vendeur_id]
+            );
+            if (vendeur?.email) {
+              await NotificationService.sendEmail({
+                to:         vendeur.email,
+                subject:    `Dossier validé — ${nomApprenant} (${formation})`,
+                body:       `Bonjour ${vendeur.prenom || vendeur.nom || ''},\n\nLe dossier de ${nomApprenant} pour "${formation}" vient d'être validé par l'équipe administrative.\n\nRéf. dossier : ${dossier.reference || id}\n\nCordialement,\nL'équipe de gestion`,
+                dossier_id: id,
+                type:       'validation_dossier_commercial',
+              });
+            }
+          }
+        }
+      } catch (notifErr) {
+        logger.warn('Erreur notifications validation dossier (non bloquant)', { error: notifErr.message, dossier_id: id });
+      }
+
       return res.status(200).json({ success: true, message: 'Dossier validé avec succès.' });
     } catch (err) {
       logger.error('Erreur validation dossier', { error: err.message });

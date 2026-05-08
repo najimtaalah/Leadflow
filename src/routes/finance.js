@@ -65,6 +65,17 @@ router.get(
 );
 
 /**
+ * GET /api/finance/export-encaissements-csv
+ * Export CSV des encaissements (ouvert à role_administratif)
+ * ?date_debut=2026-01-01&date_fin=2026-12-31&dossier_id=42
+ */
+router.get(
+  '/export-encaissements-csv',
+  authorize(...ROLES_FINANCE),
+  FinanceController.exportEncaissementsCSV
+);
+
+/**
  * GET /api/finance/dossiers/:dossierId/resume
  * Résumé financier complet d'un dossier
  */

@@ -91,6 +91,8 @@ export default function Dashboard() {
   const [loadingGestAdm, setLoadingGestAdm] = useState(false);
   const [gestAdmFetched, setGestAdmFetched] = useState(false);
   const [gestRelancing,  setGestRelancing]  = useState(null);
+  const [gestLancingPrel, setGestLancingPrel] = useState(null); // echeance_id en cours
+  const [gestPrelMsg,    setGestPrelMsg]    = useState(null);   // { type, text }
 
   /* ── Fetch tab Performance (par défaut au montage) ─────────────────────── */
   const fetchPerf = useCallback(() => {
@@ -163,6 +165,20 @@ export default function Dashboard() {
     if (t === 'gestion')        fetchGestion();
     if (t === 'finance')        fetchFinance();
     if (t === 'gestionnaire')   fetchGestionnaireAdm();
+  }
+
+  async function handleLancerPrelDashboard(echeanceId) {
+    setGestLancingPrel(echeanceId); setGestPrelMsg(null);
+    try {
+      const { data } = await api.post(`/prelevements/lancer/${echeanceId}`);
+      setGestPrelMsg({ type: 'success', text: data.message || 'Prélèvement effectué ✅' });
+      setGestAdmFetched(false);
+      fetchGestionnaireAdm();
+    } catch (e) {
+      setGestPrelMsg({ type: 'error', text: e.response?.data?.message || 'Erreur prélèvement' });
+    } finally {
+      setGestLancingPrel(null);
+    }
   }
 
   async function handleRelancerDashboard(dossier) {
@@ -543,12 +559,24 @@ export default function Dashboard() {
                 <div className="card" style={{ padding: 0 }}>
                   <div className="card-title" style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
                     🏦 Prélèvements SEPA — à lancer aujourd'hui
-                    <button className="btn btn-sm" onClick={() => navigate('/finance')}>Gérer →</button>
+                    <button className="btn btn-sm" onClick={() => navigate('/finance')}>Finance →</button>
                   </div>
+
+                  {gestPrelMsg && (
+                    <div style={{
+                      margin: '10px 16px 0', padding: '8px 12px', borderRadius: 8, fontSize: '.82rem',
+                      background: gestPrelMsg.type === 'success' ? 'var(--green-dim)' : 'var(--red-dim)',
+                      color: gestPrelMsg.type === 'success' ? 'var(--green)' : '#ef4444',
+                      border: `1px solid ${gestPrelMsg.type === 'success' ? 'var(--green)' : '#ef4444'}`,
+                    }}>
+                      {gestPrelMsg.text}
+                    </div>
+                  )}
+
                   <div className="table-wrap">
                     <table>
                       <thead>
-                        <tr><th>Apprenant</th><th>Date</th><th>Montant</th><th>IBAN</th></tr>
+                        <tr><th>Apprenant</th><th>Date</th><th>Montant</th><th>IBAN</th><th>Action</th></tr>
                       </thead>
                       <tbody>
                         {gestEcheances
@@ -561,6 +589,20 @@ export default function Dashboard() {
                               <td style={{ fontWeight: 700, color: 'var(--brand)' }}>{formatEur(e.montant)}</td>
                               <td style={{ fontFamily: 'monospace', fontSize: '.78rem' }}>
                                 {e.iban ? `${e.iban.slice(0, 4)} ···· ${e.iban.slice(-4)}` : <span style={{ color: '#ef4444' }}>Non renseigné</span>}
+                              </td>
+                              <td>
+                                {e.iban ? (
+                                  <button
+                                    className="btn btn-sm"
+                                    style={{ color: 'var(--green)', borderColor: 'var(--green)', fontSize: '.75rem' }}
+                                    onClick={() => handleLancerPrelDashboard(e.echeance_id)}
+                                    disabled={gestLancingPrel === e.echeance_id}
+                                  >
+                                    {gestLancingPrel === e.echeance_id ? '⏳…' : '🏦 Prélever'}
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '.75rem', color: '#ef4444' }}>IBAN requis</span>
+                                )}
                               </td>
                             </tr>
                           ))}

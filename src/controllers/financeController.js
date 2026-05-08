@@ -4,6 +4,7 @@ const FinanceModel = require('../models/Finance');
 const DossierModel = require('../models/Dossier');
 const LogModel     = require('../models/Log');
 const logger       = require('../utils/logger');
+const db           = require('../config/database');
 
 const MODES_PAIEMENT = ['virement', 'cb', 'cheque', 'especes', 'prelevement'];
 const MODES_PLAN     = ['mensualites', 'dates_libres'];
@@ -421,6 +422,69 @@ const FinanceController = {
       return res.status(200).json({ success: true, data: resume });
     } catch (err) {
       logger.error('Erreur getResumeDossier', { error: err.message });
+      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+  },
+
+  // ── Export comptable CSV encaissements ───────────────────────────────────
+  async exportEncaissementsCSV(req, res) {
+    try {
+      const agenceId  = buildAgenceFilter(req.user);
+      const { date_debut, date_fin, dossier_id } = req.query;
+
+      let sql = `
+        SELECT e.date_encaissement, d.reference, d.nom, d.prenom,
+               d.formation_souhaitee, e.montant, e.mode_paiement,
+               CONCAT(COALESCE(u.prenom,''), ' ', COALESCE(u.nom,'')) AS saisi_par,
+               e.notes
+        FROM encaissements e
+        JOIN dossiers d ON d.id = e.dossier_id
+        LEFT JOIN users u ON u.id = e.user_id
+        WHERE 1=1
+      `;
+      const params = [];
+
+      if (agenceId)   { sql += ' AND d.agence_id = ?'; params.push(agenceId); }
+      if (dossier_id) { sql += ' AND e.dossier_id = ?'; params.push(parseInt(dossier_id)); }
+      if (date_debut) { sql += ' AND e.date_encaissement >= ?'; params.push(date_debut); }
+      if (date_fin)   { sql += ' AND e.date_encaissement <= ?'; params.push(date_fin); }
+
+      sql += ' ORDER BY e.date_encaissement DESC';
+
+      const [rows] = await db.query(sql, params);
+
+      const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const header = ['Date', 'Référence', 'Nom', 'Prénom', 'Formation', 'Montant (€)', 'Mode paiement', 'Saisi par', 'Notes'];
+      const lines  = [
+        header.map(escape).join(','),
+        ...rows.map(r => [
+          r.date_encaissement ? new Date(r.date_encaissement).toLocaleDateString('fr-FR') : '',
+          r.reference || '',
+          r.nom || '',
+          r.prenom || '',
+          r.formation_souhaitee || '',
+          parseFloat(r.montant || 0).toFixed(2).replace('.', ','),
+          r.mode_paiement || '',
+          (r.saisi_par || '').trim(),
+          r.notes || '',
+        ].map(escape).join(',')),
+      ];
+
+      const csv      = '﻿' + lines.join('\r\n'); // BOM pour compatibilité Excel
+      const filename = `encaissements_${new Date().toISOString().split('T')[0]}.csv`;
+
+      await LogModel.create({
+        action: 'export_encaissements_csv', user_id: req.user.id,
+        details: { lignes: rows.length, date_debut, date_fin },
+        ip_address: req.ip,
+      });
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(csv);
+
+    } catch (err) {
+      logger.error('Erreur exportEncaissementsCSV', { error: err.message });
       return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
   },
