@@ -36,18 +36,10 @@ const FREQ_OPTIONS = [
   { value: '24h', label: 'Chaque nuit (24h)' },
 ];
 
-const EMAIL_TYPES = [
-  { value: 'admis_theorie',   label: '✅ Admis Théorie' },
-  { value: 'echec_theorie',   label: '❌ Échec Théorie' },
-  { value: 'admis_pratique',  label: '🎓 Admis Pratique (Diplômé)' },
-  { value: 'echec_pratique',  label: '❌ Échec Pratique' },
-];
-
-const TABS = ['tableau_de_bord', 'resultats', 'email_ia'];
+const TABS = ['tableau_de_bord', 'resultats'];
 const TAB_LABELS = {
   tableau_de_bord: '📊 Tableau de bord',
   resultats:       '📋 Résultats CMA',
-  email_ia:        '✍️ Emails IA',
 };
 
 export default function Agent() {
@@ -74,13 +66,6 @@ export default function Agent() {
   // Config
   const [configSaving, setConfigSaving] = useState(false);
   const [configForm, setConfigForm]   = useState({ actif: false, frequence: '24h' });
-
-  // Email IA
-  const [emailType, setEmailType]     = useState('admis_theorie');
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [emailContent, setEmailContent] = useState('');
-  const [emailSource, setEmailSource]   = useState('');
-  const [emailDossierId, setEmailDossierId] = useState('');
 
   /* ── Chargement initial ── */
   const loadStatus = useCallback(async () => {
@@ -144,24 +129,6 @@ export default function Agent() {
       setSyncMsg({ type: 'error', text: e.response?.data?.message || 'Erreur' });
     } finally {
       setConfigSaving(false);
-    }
-  }
-
-  /* ── Génération email IA ── */
-  async function handleGenererEmail() {
-    setEmailLoading(true); setEmailContent(''); setEmailSource('');
-    try {
-      const { data } = await api.post('/agent/generer-email', {
-        type:       emailType,
-        dossier_id: emailDossierId || undefined,
-      });
-      setEmailContent(data.data?.content || '');
-      setEmailSource(data.data?.source  || '');
-    } catch (e) {
-      setEmailContent('Erreur : ' + (e.response?.data?.message || 'Impossible de générer le contenu'));
-      setEmailSource('error');
-    } finally {
-      setEmailLoading(false);
     }
   }
 
@@ -263,10 +230,8 @@ export default function Agent() {
           <div className="spinner-wrap"><div className="spinner" /></div>
         ) : (
           <div>
-            {/* Bandeaux statut */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-
-              {/* CMA Mode */}
+            {/* Bandeau statut CMA */}
+            <div style={{ marginBottom: 20 }}>
               <div className="card" style={{ padding: '16px 20px' }}>
                 <div style={{ fontWeight: 700, fontSize: '.82rem', color: 'var(--txt3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>
                   Portail CMA
@@ -283,33 +248,6 @@ export default function Agent() {
                 {status?.cma?.is_simulation && (
                   <p style={{ fontSize: '.72rem', color: 'var(--txt3)', marginTop: 8 }}>
                     Ajoutez <code>CMA_BASE_URL</code>, <code>CMA_LOGIN</code>, <code>CMA_PASSWORD</code> dans <code>.env</code> pour le mode réel.
-                  </p>
-                )}
-              </div>
-
-              {/* Ollama */}
-              <div className="card" style={{ padding: '16px 20px' }}>
-                <div style={{ fontWeight: 700, fontSize: '.82rem', color: 'var(--txt3)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                  Ollama IA
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{
-                    padding: '4px 12px', borderRadius: 20, fontSize: '.8rem', fontWeight: 700,
-                    background: status?.ollama?.disponible ? 'var(--green-dim)' : 'var(--red-dim)',
-                    color:      status?.ollama?.disponible ? 'var(--green)'     : 'var(--red)',
-                  }}>
-                    {status?.ollama?.disponible ? `✅ Connecté — ${status.ollama.model}` : '❌ Non disponible'}
-                  </span>
-                </div>
-                {!status?.ollama?.disponible && (
-                  <p style={{ fontSize: '.72rem', color: 'var(--txt3)', marginTop: 8 }}>
-                    Démarrez Ollama : <code>ollama serve</code> puis <code>ollama pull llama3</code>
-                  </p>
-                )}
-                {status?.ollama?.disponible && status?.ollama?.models?.length > 0 && (
-                  <p style={{ fontSize: '.72rem', color: 'var(--txt3)', marginTop: 6 }}>
-                    Modèles disponibles : {status.ollama.models.slice(0, 3).join(', ')}
-                    {status.ollama.models.length > 3 && ` +${status.ollama.models.length - 3}`}
                   </p>
                 )}
               </div>
@@ -493,129 +431,6 @@ export default function Agent() {
         </div>
       )}
 
-      {/* ════════════════════════════════════
-          TAB : Emails IA (Ollama)
-      ════════════════════════════════════ */}
-      {activeTab === 'email_ia' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: 16, alignItems: 'start' }}>
-          {/* Panneau gauche — paramètres */}
-          <div className="card" style={{ padding: '18px 20px' }}>
-            <div style={{ fontWeight: 700, marginBottom: 14, fontSize: '.92rem' }}>✍️ Générateur d'emails IA</div>
-
-            {/* Statut Ollama */}
-            <div style={{
-              padding: '8px 12px', borderRadius: 8, marginBottom: 16, fontSize: '.78rem',
-              background: status?.ollama?.disponible ? 'var(--green-dim)' : 'var(--orange-dim)',
-              color:      status?.ollama?.disponible ? 'var(--green)'     : 'var(--orange)',
-              border:    `1px solid ${status?.ollama?.disponible ? 'var(--green)' : 'var(--orange)'}`,
-            }}>
-              {status?.ollama?.disponible
-                ? `✅ Ollama connecté — modèle ${status.ollama.model}`
-                : `⚠️ Ollama non disponible — les emails par défaut seront utilisés`}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Type d'email</label>
-              <select className="form-select" value={emailType} onChange={(e) => setEmailType(e.target.value)}>
-                {EMAIL_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">ID Dossier (optionnel)</label>
-              <input
-                className="form-input"
-                type="number"
-                placeholder="Ex : 42"
-                value={emailDossierId}
-                onChange={(e) => setEmailDossierId(e.target.value)}
-              />
-              <div style={{ fontSize: '.72rem', color: 'var(--txt3)', marginTop: 4 }}>
-                Laissez vide pour un email générique
-              </div>
-            </div>
-
-            <button
-              className="btn-primary"
-              onClick={handleGenererEmail}
-              disabled={emailLoading}
-              style={{ width: '100%', marginTop: 8 }}
-            >
-              {emailLoading
-                ? <><div className="spinner" style={{ width: 14, height: 14, borderWidth: 2, display: 'inline-block', marginRight: 8 }} />Génération en cours…</>
-                : '🤖 Générer avec IA'}
-            </button>
-
-            <div style={{ marginTop: 16, fontSize: '.72rem', color: 'var(--txt3)' }}>
-              <strong>Comment ça marche :</strong>
-              <ol style={{ marginTop: 4, paddingLeft: 16, lineHeight: 1.7 }}>
-                <li>Choisissez le type de situation</li>
-                <li>Sélectionnez un dossier (optionnel)</li>
-                <li>L'IA génère un email personnalisé</li>
-                <li>Copiez et adaptez si nécessaire</li>
-              </ol>
-            </div>
-          </div>
-
-          {/* Panneau droit — résultat */}
-          <div className="card" style={{ padding: '18px 20px', minHeight: 300 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: '.92rem' }}>📧 Contenu généré</div>
-              {emailSource && (
-                <span className={`badge ${emailSource === 'ollama' ? 'badge-green' : emailSource === 'error' ? 'badge-red' : 'badge-orange'}`} style={{ fontSize: '.72rem' }}>
-                  {emailSource === 'ollama' ? '🤖 Ollama' : emailSource === 'error' ? '❌ Erreur' : '📝 Modèle par défaut'}
-                </span>
-              )}
-            </div>
-
-            {emailLoading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--txt3)' }}>
-                <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
-                <p style={{ marginTop: 16, fontSize: '.82rem' }}>
-                  {status?.ollama?.disponible ? 'Génération avec Ollama…' : 'Chargement du modèle par défaut…'}
-                </p>
-              </div>
-            ) : emailContent ? (
-              <>
-                <textarea
-                  value={emailContent}
-                  onChange={(e) => setEmailContent(e.target.value)}
-                  style={{
-                    width: '100%', minHeight: 220, padding: '10px 14px',
-                    fontFamily: 'inherit', fontSize: '.84rem', lineHeight: 1.6,
-                    border: '1px solid var(--border)', borderRadius: 8,
-                    background: 'var(--surface2)', color: 'var(--txt)',
-                    resize: 'vertical',
-                  }}
-                />
-                <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button
-                    className="btn btn-sm"
-                    onClick={() => { navigator.clipboard.writeText(emailContent); }}
-                  >
-                    📋 Copier
-                  </button>
-                  <button className="btn btn-sm" onClick={handleGenererEmail} disabled={emailLoading}>
-                    🔄 Régénérer
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--txt3)' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>✉️</div>
-                <p style={{ fontSize: '.85rem' }}>Cliquez sur "Générer avec IA" pour créer un email personnalisé</p>
-                {!status?.ollama?.disponible && (
-                  <p style={{ fontSize: '.75rem', color: 'var(--orange)', marginTop: 8, textAlign: 'center', maxWidth: 280 }}>
-                    Ollama non disponible — un email standard sera généré
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

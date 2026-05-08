@@ -2,21 +2,18 @@
 
 const AgentCMAService  = require('../services/agentCMAService');
 const ResultatCMAModel = require('../models/ResultatCMA');
-const ollamaService    = require('../services/ollamaService');
 const db               = require('../config/database');
 const logger           = require('../utils/logger');
 
 /* ──────────────────────────────────────────────────────────
    GET /api/agent/status
-   Retourne : mode CMA, config sync, état Ollama, stats
+   Retourne : mode CMA, config sync, stats
    ────────────────────────────────────────────────────────── */
 async function getStatus(req, res) {
   try {
-    const [config, stats, ollamaOk, ollamaModels] = await Promise.all([
+    const [config, stats] = await Promise.all([
       ResultatCMAModel.getSyncConfig(),
       ResultatCMAModel.getLastSyncStats(),
-      ollamaService.isAvailable(),
-      ollamaService.listModels(),
     ]);
 
     const cmaMode = process.env.CMA_BASE_URL ? 'reel' : 'simulation';
@@ -44,12 +41,6 @@ async function getStatus(req, res) {
           en_attente:        stats?.en_attente         ?? 0,
           actions_declenchees: stats?.actions_declenchees ?? 0,
           derniere_sync:     stats?.derniere_sync      ?? null,
-        },
-        ollama: {
-          disponible:  ollamaOk,
-          model:       ollamaService.MODEL,
-          base_url:    ollamaService.OLLAMA_BASE,
-          models:      ollamaModels,
         },
       },
     });
@@ -201,132 +192,10 @@ async function updateConfig(req, res) {
   }
 }
 
-/* ──────────────────────────────────────────────────────────
-   POST /api/agent/generer-email
-   Génère un email personnalisé via Ollama pour un apprenant
-   Body : { type, dossier_id }
-   Types : admis_theorie | echec_theorie | admis_pratique | echec_pratique
-   ────────────────────────────────────────────────────────── */
-async function genererEmail(req, res) {
-  try {
-    const { type, dossier_id } = req.body;
-
-    const TYPES_VALIDES = ['admis_theorie', 'echec_theorie', 'admis_pratique', 'echec_pratique'];
-    if (!type || !TYPES_VALIDES.includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: `Type invalide. Valeurs : ${TYPES_VALIDES.join(', ')}`,
-      });
-    }
-
-    // Récupérer le dossier si fourni
-    let apprenant = { prenom: 'Apprenant', nom: '' };
-    let formation = 'la formation';
-
-    if (dossier_id) {
-      const [[d]] = await db.query(
-        'SELECT prenom, nom, formation_souhaitee FROM dossiers WHERE id = ?',
-        [parseInt(dossier_id)]
-      ).catch(() => [[]]);
-      if (d) {
-        apprenant = d;
-        formation = d.formation_souhaitee || formation;
-      }
-    }
-
-    const result = await ollamaService.generateEmailContent({ type, apprenant, formation });
-
-    return res.json({
-      success: true,
-      data: {
-        content: result.content,
-        source:  result.source, // 'ollama' | 'default'
-        type,
-        ollama_disponible: result.source === 'ollama',
-      },
-    });
-  } catch (err) {
-    logger.error('agentController.genererEmail', { err: err.message });
-    return res.status(500).json({ success: false, message: 'Erreur serveur.' });
-  }
-}
-
-/* ──────────────────────────────────────────────────────────
-   POST /api/agent/score-lead
-   Score un lead via Ollama
-   Body : { lead_id } ou lead object directement
-   ────────────────────────────────────────────────────────── */
-async function scorerLead(req, res) {
-  try {
-    let lead = req.body.lead;
-
-    if (!lead && req.body.lead_id) {
-      const [[row]] = await db.query(
-        `SELECT l.*, DATEDIFF(NOW(), l.created_at) AS jours_depuis_creation
-         FROM leads l WHERE l.id = ?`,
-        [parseInt(req.body.lead_id)]
-      ).catch(() => [[]]);
-      lead = row;
-    }
-
-    if (!lead) {
-      return res.status(400).json({ success: false, message: 'lead ou lead_id requis.' });
-    }
-
-    const ollamaOk = await ollamaService.isAvailable();
-    if (!ollamaOk) {
-      return res.status(503).json({
-        success: false,
-        message: 'Ollama non disponible. Démarrez Ollama : ollama serve',
-        ollama_url: ollamaService.OLLAMA_BASE,
-      });
-    }
-
-    const score = await ollamaService.scoreLead(lead);
-    if (!score) {
-      return res.status(500).json({ success: false, message: 'Impossible de générer le score.' });
-    }
-
-    return res.json({ success: true, data: score });
-  } catch (err) {
-    logger.error('agentController.scorerLead', { err: err.message });
-    return res.status(500).json({ success: false, message: 'Erreur serveur.' });
-  }
-}
-
-/* ──────────────────────────────────────────────────────────
-   GET /api/agent/ollama/status
-   Vérifie la disponibilité d'Ollama
-   ────────────────────────────────────────────────────────── */
-async function getOllamaStatus(req, res) {
-  try {
-    const [disponible, models] = await Promise.all([
-      ollamaService.isAvailable(),
-      ollamaService.listModels(),
-    ]);
-
-    return res.json({
-      success: true,
-      data: {
-        disponible,
-        model_actif: ollamaService.MODEL,
-        base_url:    ollamaService.OLLAMA_BASE,
-        models,
-        install_hint: disponible ? null : `Ollama non démarré. Lancez : ollama serve\nTéléchargez le modèle : ollama pull ${ollamaService.MODEL}`,
-      },
-    });
-  } catch (err) {
-    return res.json({ success: true, data: { disponible: false, models: [] } });
-  }
-}
-
 module.exports = {
   getStatus,
   lancerSync,
   getResultats,
   getSessions,
   updateConfig,
-  genererEmail,
-  scorerLead,
-  getOllamaStatus,
 };
