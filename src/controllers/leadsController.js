@@ -6,21 +6,11 @@ const LogModel           = require('../models/Log');
 const DistributionService = require('../services/distributionService');
 const logger             = require('../utils/logger');
 const db                 = require('../config/database');
+const { STATUTS_LEAD, STATUTS_REASSIGN } = require('../constants');
 
-// Statuts autorisés et transitions valides
-const STATUTS_VALIDES = [
-  'entrant', 'contacte', 'qualifie', 'rdv_booke',
-  'gagne', 'perdu', 'annule', 'en_suspens', 'injoignable',
-];
-
-// Statuts qui déclenchent la réaffectation automatique (UC-09)
-const STATUTS_REASSIGN = ['perdu', 'annule'];
-
-// Statut qui déclenche la création de dossier (UC-08)
-const STATUT_GAGNE = 'gagne';
-
-// Statut qui déclenche la création de RDV (UC-08)
-const STATUT_RDV = 'rdv_booke';
+const STATUTS_VALIDES = Object.values(STATUTS_LEAD);
+const STATUT_GAGNE    = STATUTS_LEAD.GAGNE;
+const STATUT_RDV      = STATUTS_LEAD.RDV_BOOKE;
 
 /**
  * Filtre les leads selon le rôle de l'utilisateur connecté (UC-07)

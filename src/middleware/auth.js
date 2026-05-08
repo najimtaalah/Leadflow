@@ -3,16 +3,7 @@
 const { verifyToken, extractTokenFromHeader } = require('../utils/jwt');
 const db     = require('../config/database');
 const logger = require('../utils/logger');
-
-// ── Hiérarchie des rôles (du plus au moins privilégié) ─────────────────────
-const ROLE_HIERARCHY = [
-  'super_admin',
-  'role_admin',
-  'manager',
-  'commercial',
-  'role_administratif',
-  'agent_accueil',
-];
+const { ROLE_HIERARCHY } = require('../constants');
 
 /**
  * Middleware d'authentification — vérifie le JWT et charge l'utilisateur
