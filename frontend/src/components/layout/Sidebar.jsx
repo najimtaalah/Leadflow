@@ -143,6 +143,7 @@ export default function Sidebar() {
             <NavDirect to="/agenda"    icon="📅">Agenda</NavDirect>
             <NavDirect to="/reporting" icon="📈">Reporting</NavDirect>
             <NavDirect to="/agent"     icon="🤖">Agent IA</NavDirect>
+            <NavDirect to="/qualiopi"  icon="🏅">Qualiopi</NavDirect>
           </>
         )}
 
@@ -167,6 +168,7 @@ export default function Sidebar() {
             <NavDirect to="/reporting"   icon="📈">Reporting</NavDirect>
             <NavDirect to="/commissions" icon="🏆">Commissions</NavDirect>
             <NavDirect to="/agent"       icon="🤖">Agent IA</NavDirect>
+            <NavDirect to="/qualiopi"    icon="🏅">Qualiopi</NavDirect>
 
             <span className="nav-section">Configuration</span>
             <NavGroup icon="⚙️" label="Paramétrage" matchPrefix="/parametrage">

@@ -19,6 +19,7 @@ import Profil     from './pages/Profil';
 import MesLeads from './pages/MesLeads';   // commercial + manager
 import Accueil  from './pages/Accueil';   // agent_accueil
 import Taches   from './pages/Taches';    // workflow CMA
+import Qualiopi from './pages/Qualiopi'; // module Qualiopi
 
 // Paramétrage
 import ParamUsers      from './pages/Parametrage/Users';
@@ -81,6 +82,9 @@ export default function App() {
 
           {/* ── Tâches CMA ── */}
           <Route path="taches" element={<Taches />} />
+
+          {/* ── Module Qualiopi ── */}
+          <Route path="qualiopi" element={<Qualiopi />} />
 
           {/* ── Paramétrage ── */}
           <Route path="parametrage/utilisateurs" element={<ParamUsers />} />
