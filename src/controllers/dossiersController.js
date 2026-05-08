@@ -415,6 +415,51 @@ const DossiersController = {
       return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
   },
+
+  // ── Notes gestionnaire par dossier ────────────────────────────────────────
+  async getDossierNotes(req, res) {
+    try {
+      const dossierId = parseInt(req.params.id);
+      if (!dossierId) return res.status(400).json({ success: false, message: 'ID invalide.' });
+
+      const [rows] = await db.query(
+        `SELECT i.id, i.contenu, i.created_at,
+                CONCAT(COALESCE(u.prenom,''), ' ', COALESCE(u.nom,'')) AS auteur
+         FROM interactions i
+         LEFT JOIN users u ON u.id = i.user_id
+         WHERE i.dossier_id = ? AND i.type = 'note'
+         ORDER BY i.created_at DESC
+         LIMIT 50`,
+        [dossierId]
+      );
+      return res.json({ success: true, data: rows });
+    } catch (err) {
+      logger.error('Erreur getDossierNotes', { error: err.message });
+      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+  },
+
+  async addDossierNote(req, res) {
+    try {
+      const dossierId = parseInt(req.params.id);
+      if (!dossierId) return res.status(400).json({ success: false, message: 'ID invalide.' });
+
+      const contenu = (req.body.contenu || '').trim();
+      if (!contenu) return res.status(400).json({ success: false, message: 'Contenu requis.' });
+
+      await db.query(
+        `INSERT INTO interactions (dossier_id, type, contenu, user_id, created_at)
+         VALUES (?, 'note', ?, ?, NOW())`,
+        [dossierId, contenu, req.user.id]
+      );
+
+      logger.info('Note gestionnaire ajoutée', { dossier_id: dossierId, user_id: req.user.id });
+      return res.status(201).json({ success: true, message: 'Note ajoutée.' });
+    } catch (err) {
+      logger.error('Erreur addDossierNote', { error: err.message });
+      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+  },
 };
 
 module.exports = DossiersController;

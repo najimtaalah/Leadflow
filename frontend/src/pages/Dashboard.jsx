@@ -85,6 +85,13 @@ export default function Dashboard() {
   const [loadingFin,  setLoadingFin]  = useState(false);
   const [finFetched,  setFinFetched]  = useState(false);
 
+  // ── Tab 4 : Gestionnaire (role_administratif) ─────────────────────────────
+  const [gestRetards,    setGestRetards]    = useState([]);
+  const [gestEcheances,  setGestEcheances]  = useState([]);
+  const [loadingGestAdm, setLoadingGestAdm] = useState(false);
+  const [gestAdmFetched, setGestAdmFetched] = useState(false);
+  const [gestRelancing,  setGestRelancing]  = useState(null);
+
   /* ── Fetch tab Performance (par défaut au montage) ─────────────────────── */
   const fetchPerf = useCallback(() => {
     setLoadingPerf(true);
@@ -128,18 +135,47 @@ export default function Dashboard() {
       .finally(() => setLoadingFin(false));
   }, [finFetched]);
 
+  /* ── Fetch tab Gestionnaire admin (lazy) ───────────────────────────────── */
+  const fetchGestionnaireAdm = useCallback(() => {
+    if (gestAdmFetched) return;
+    setLoadingGestAdm(true);
+    Promise.all([
+      api.get('/finance/retards').catch(() => ({ data: { data: [] } })),
+      api.get('/prelevements/echeances-dues?tous=1').catch(() => ({ data: { data: [] } })),
+    ]).then(([retRes, echRes]) => {
+      setGestRetards(Array.isArray(retRes.data?.data) ? retRes.data.data : []);
+      setGestEcheances(Array.isArray(echRes.data?.data) ? echRes.data.data : []);
+      setGestAdmFetched(true);
+    }).finally(() => setLoadingGestAdm(false));
+  }, [gestAdmFetched]);
+
   /* ── Montage + re-fetch au retour sur le Dashboard ─────────────────────── */
   useEffect(() => {
     fetchPerf();
     setGestFetched(false);
     setFinFetched(false);
+    setGestAdmFetched(false);
   }, [location.pathname]); // eslint-disable-line
 
   /* ── Changer d'onglet ───────────────────────────────────────────────────── */
   function handleTab(t) {
     setTab(t);
-    if (t === 'gestion') fetchGestion();
-    if (t === 'finance') fetchFinance();
+    if (t === 'gestion')        fetchGestion();
+    if (t === 'finance')        fetchFinance();
+    if (t === 'gestionnaire')   fetchGestionnaireAdm();
+  }
+
+  async function handleRelancerDashboard(dossier) {
+    if (!window.confirm(`Envoyer une relance à ${dossier.prenom} ${dossier.nom} ?`)) return;
+    setGestRelancing(dossier.id);
+    try {
+      const { data } = await api.post(`/finance/dossiers/${dossier.id}/relancer`);
+      alert(data.message || 'Relance envoyée.');
+    } catch (e) {
+      alert(e.response?.data?.message || 'Erreur lors de la relance');
+    } finally {
+      setGestRelancing(null);
+    }
   }
 
   const prenom = user?.prenom || user?.nom || 'vous';
@@ -165,6 +201,7 @@ export default function Dashboard() {
           { key: 'perf',    label: '📊 Performance Commerciale' },
           { key: 'gestion', label: '📁 Gestion Dossiers' },
           ...(isAdminOrAdm ? [{ key: 'finance', label: '💰 Finance' }] : []),
+          ...(role === 'role_administratif' ? [{ key: 'gestionnaire', label: '🗂️ Gestionnaire' }] : []),
         ].map(({ key, label }) => (
           <button
             key={key}
@@ -404,6 +441,136 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        </>
+      )}
+
+      {/* ════════════════════════════════════════════
+          ONGLET 4 — GESTIONNAIRE (role_administratif)
+      ════════════════════════════════════════════ */}
+      {tab === 'gestionnaire' && role === 'role_administratif' && (
+        <>
+          {loadingGestAdm ? (
+            <div className="spinner-wrap" style={{ marginTop: 40 }}><div className="spinner" /></div>
+          ) : (
+            <>
+              {/* KPIs gestionnaire */}
+              <div className="grid-4" style={{ marginBottom: 24 }}>
+                <KpiCard
+                  label="Dossiers en retard"
+                  value={gestRetards.length}
+                  icon="⚠️" color="red"
+                  alert={gestRetards.length > 0}
+                  sub={gestRetards.length > 0 ? `${gestRetards.length} dossier(s) à relancer` : 'Aucun retard'}
+                />
+                <KpiCard
+                  label="Échéances dues auj."
+                  value={gestEcheances.filter(e => e.date_echeance <= new Date().toISOString().split('T')[0]).length}
+                  icon="🏦" color="orange"
+                  sub="Prélèvements SEPA à lancer"
+                />
+                <KpiCard
+                  label="Montant en retard"
+                  value={formatEur(gestRetards.reduce((s, d) => s + parseFloat(d.reste_a_payer || 0), 0))}
+                  icon="💶" color="red"
+                />
+                <KpiCard
+                  label="Échéances en attente"
+                  value={gestEcheances.length}
+                  icon="📅" color="blue"
+                  sub="Total prélèvements configurés"
+                />
+              </div>
+
+              {/* Dossiers en retard de paiement */}
+              <div className="card" style={{ padding: 0, marginBottom: 16 }}>
+                <div className="card-title" style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                  ⚠️ Dossiers en retard de paiement
+                  <button className="btn btn-sm" onClick={() => navigate('/finance')}>Voir Finance →</button>
+                </div>
+                {gestRetards.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '24px 16px' }}>
+                    <div className="empty-state-icon">✅</div>
+                    <div className="empty-state-text">Aucun dossier en retard</div>
+                  </div>
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Apprenant</th>
+                          <th>Contact</th>
+                          <th>Reste à payer</th>
+                          <th>Prochaine échéance</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gestRetards.slice(0, 10).map(d => (
+                          <tr key={d.id}>
+                            <td>
+                              <strong>{d.prenom} {d.nom}</strong>
+                              {d.reference && <div style={{ fontSize: '.72rem', color: 'var(--txt3)' }}>{d.reference}</div>}
+                            </td>
+                            <td>
+                              {d.email     && <div style={{ fontSize: '.78rem' }}>✉️ {d.email}</div>}
+                              {d.telephone && <div style={{ fontSize: '.78rem' }}>📞 {d.telephone}</div>}
+                            </td>
+                            <td style={{ color: '#ef4444', fontWeight: 700 }}>{formatEur(d.reste_a_payer)}</td>
+                            <td>
+                              {d.prochaine_echeance
+                                ? <span className="badge badge-red">{new Date(d.prochaine_echeance).toLocaleDateString('fr-FR')}</span>
+                                : '—'}
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => handleRelancerDashboard(d)}
+                                disabled={gestRelancing === d.id}
+                              >
+                                {gestRelancing === d.id ? '⏳…' : '📨 Relancer'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Échéances SEPA dues aujourd'hui */}
+              {gestEcheances.filter(e => e.date_echeance <= new Date().toISOString().split('T')[0]).length > 0 && (
+                <div className="card" style={{ padding: 0 }}>
+                  <div className="card-title" style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                    🏦 Prélèvements SEPA — à lancer aujourd'hui
+                    <button className="btn btn-sm" onClick={() => navigate('/finance')}>Gérer →</button>
+                  </div>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr><th>Apprenant</th><th>Date</th><th>Montant</th><th>IBAN</th></tr>
+                      </thead>
+                      <tbody>
+                        {gestEcheances
+                          .filter(e => e.date_echeance <= new Date().toISOString().split('T')[0])
+                          .slice(0, 8)
+                          .map(e => (
+                            <tr key={e.echeance_id}>
+                              <td><strong>{e.prenom} {e.nom}</strong></td>
+                              <td><span className="badge badge-orange">{new Date(e.date_echeance).toLocaleDateString('fr-FR')}</span></td>
+                              <td style={{ fontWeight: 700, color: 'var(--brand)' }}>{formatEur(e.montant)}</td>
+                              <td style={{ fontFamily: 'monospace', fontSize: '.78rem' }}>
+                                {e.iban ? `${e.iban.slice(0, 4)} ···· ${e.iban.slice(-4)}` : <span style={{ color: '#ef4444' }}>Non renseigné</span>}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
 

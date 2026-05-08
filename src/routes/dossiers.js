@@ -151,4 +151,24 @@ router.post(
   DossiersController.importEDOF
 );
 
+/**
+ * GET /api/dossiers/:id/notes
+ * Notes gestionnaire rattachées à un dossier (interactions type='note')
+ */
+router.get(
+  '/:id/notes',
+  authorize(...ROLES_DOSSIERS),
+  DossiersController.getDossierNotes
+);
+
+/**
+ * POST /api/dossiers/:id/notes
+ * Ajouter une note gestionnaire sur un dossier
+ */
+router.post(
+  '/:id/notes',
+  authorize(...ROLES_CMA),
+  DossiersController.addDossierNote
+);
+
 module.exports = router;

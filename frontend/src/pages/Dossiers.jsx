@@ -74,6 +74,13 @@ export default function Dossiers() {
   const [pedaData, setPedaData]         = useState({});   // { [id]: { inscriptions, resultats } }
   const [pedaLoading, setPedaLoading]   = useState(false);
 
+  // ── Notes gestionnaire — panel dossier ───────────────────────────────────
+  const [notesExpanded, setNotesExpanded] = useState(null); // dossier_id ouvert
+  const [notesData, setNotesData]         = useState({});   // { [id]: Note[] }
+  const [notesLoading, setNotesLoading]   = useState(false);
+  const [notesInput, setNotesInput]       = useState({});   // { [id]: string }
+  const [notesSaving, setNotesSaving]     = useState(false);
+
   // ── Sessions filtrées ───────────────────────────────────────────────────
   const filteredCours  = selectedFormationId
     ? allSessions.filter(s => s.type_session === 'cours'  && String(s.formation_id) === String(selectedFormationId))
@@ -215,6 +222,34 @@ export default function Dossiers() {
     } finally { setPedaLoading(false); }
   }
 
+  // ── Notes gestionnaire ───────────────────────────────────────────────────
+  async function toggleNotes(dossierId) {
+    if (notesExpanded === dossierId) { setNotesExpanded(null); return; }
+    setNotesExpanded(dossierId);
+    if (notesData[dossierId]) return;
+    setNotesLoading(true);
+    try {
+      const { data } = await api.get(`/dossiers/${dossierId}/notes`);
+      setNotesData(prev => ({ ...prev, [dossierId]: Array.isArray(data.data) ? data.data : [] }));
+    } catch {
+      setNotesData(prev => ({ ...prev, [dossierId]: [] }));
+    } finally { setNotesLoading(false); }
+  }
+
+  async function saveNote(dossierId) {
+    const contenu = (notesInput[dossierId] || '').trim();
+    if (!contenu) return;
+    setNotesSaving(true);
+    try {
+      await api.post(`/dossiers/${dossierId}/notes`, { contenu });
+      const { data } = await api.get(`/dossiers/${dossierId}/notes`);
+      setNotesData(prev => ({ ...prev, [dossierId]: Array.isArray(data.data) ? data.data : [] }));
+      setNotesInput(prev => ({ ...prev, [dossierId]: '' }));
+    } catch (e) {
+      alert(e.response?.data?.message || 'Erreur');
+    } finally { setNotesSaving(false); }
+  }
+
   // ── Filtres ──────────────────────────────────────────────────────────────
   const displayed = dossiers.filter(d => {
     const dStatut = d.statut_nom || d.statut || '';
@@ -317,45 +352,124 @@ export default function Dossiers() {
                   </thead>
                   <tbody>
                     {displayed.map(d => (
-                      <tr key={d.id}>
-                        <td>
-                          {d.reference
-                            ? <span className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '.72rem' }}>{d.reference}</span>
-                            : <span style={{ color: 'var(--txt3)', fontSize: '.72rem' }}>—</span>}
-                        </td>
-                        <td>
-                          <strong style={{ cursor: 'pointer', color: 'var(--brand)' }} onClick={() => openEdit(d)}>
-                            {d.prenom ? `${d.prenom} ${d.nom}` : d.nom}
-                          </strong>
-                        </td>
-                        <td>{d.telephone || '—'}</td>
-                        <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {d.formation_souhaitee || '—'}
-                        </td>
-                        <td>
-                          {d.session_cours_code
-                            ? <span className="badge badge-blue">{d.session_cours_code}</span>
-                            : <span style={{ color: 'var(--txt3)' }}>—</span>}
-                        </td>
-                        <td>
-                          {d.session_edof_code
-                            ? <span className="badge badge-purple">{d.session_edof_code}</span>
-                            : <span style={{ color: 'var(--txt3)' }}>—</span>}
-                        </td>
-                        <td>
-                          {d.examen_code
-                            ? <span className="badge badge-orange">{d.examen_code}</span>
-                            : <span style={{ color: 'var(--txt3)' }}>—</span>}
-                        </td>
-                        <td>
-                          <span className={`badge ${STATUT_COLORS[d.statut_nom || d.statut] || 'badge-gray'}`}>
-                            {d.statut_nom || d.statut || '—'}
-                          </span>
-                        </td>
-                        <td>
-                          <button className="btn btn-sm" onClick={() => openEdit(d)} title="Modifier">✏️</button>
-                        </td>
-                      </tr>
+                      <React.Fragment key={d.id}>
+                        <tr>
+                          <td>
+                            {d.reference
+                              ? <span className="badge badge-gray" style={{ fontFamily: 'monospace', fontSize: '.72rem' }}>{d.reference}</span>
+                              : <span style={{ color: 'var(--txt3)', fontSize: '.72rem' }}>—</span>}
+                          </td>
+                          <td>
+                            <strong style={{ cursor: 'pointer', color: 'var(--brand)' }} onClick={() => openEdit(d)}>
+                              {d.prenom ? `${d.prenom} ${d.nom}` : d.nom}
+                            </strong>
+                          </td>
+                          <td>{d.telephone || '—'}</td>
+                          <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {d.formation_souhaitee || '—'}
+                          </td>
+                          <td>
+                            {d.session_cours_code
+                              ? <span className="badge badge-blue">{d.session_cours_code}</span>
+                              : <span style={{ color: 'var(--txt3)' }}>—</span>}
+                          </td>
+                          <td>
+                            {d.session_edof_code
+                              ? <span className="badge badge-purple">{d.session_edof_code}</span>
+                              : <span style={{ color: 'var(--txt3)' }}>—</span>}
+                          </td>
+                          <td>
+                            {d.examen_code
+                              ? <span className="badge badge-orange">{d.examen_code}</span>
+                              : <span style={{ color: 'var(--txt3)' }}>—</span>}
+                          </td>
+                          <td>
+                            <span className={`badge ${STATUT_COLORS[d.statut_nom || d.statut] || 'badge-gray'}`}>
+                              {d.statut_nom || d.statut || '—'}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button className="btn btn-sm" onClick={() => openEdit(d)} title="Modifier">✏️</button>
+                              <button
+                                className={`btn btn-sm${notesExpanded === d.id ? ' active' : ''}`}
+                                onClick={() => toggleNotes(d.id)}
+                                title="Notes gestionnaire"
+                                style={{ color: notesExpanded === d.id ? 'var(--brand)' : undefined }}
+                              >
+                                📝
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Panel notes gestionnaire (expandable) */}
+                        {notesExpanded === d.id && (
+                          <tr>
+                            <td colSpan={9} style={{ padding: 0, background: 'var(--surface2)', borderBottom: '2px solid var(--brand)' }}>
+                              <div style={{ padding: '12px 18px' }}>
+                                <div style={{ fontWeight: 700, fontSize: '.82rem', color: 'var(--brand)', marginBottom: 10 }}>
+                                  📝 Notes gestionnaire — {d.prenom} {d.nom}
+                                </div>
+
+                                {/* Formulaire ajout note */}
+                                {canEditCMA && (
+                                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                                    <textarea
+                                      placeholder="Ajouter une note gestionnaire…"
+                                      rows={2}
+                                      style={{
+                                        flex: 1, resize: 'vertical', borderRadius: 6,
+                                        border: '1px solid var(--border)', padding: '6px 10px',
+                                        fontSize: '.82rem', fontFamily: 'inherit',
+                                        background: 'var(--surface)', color: 'var(--txt)',
+                                      }}
+                                      value={notesInput[d.id] || ''}
+                                      onChange={e => setNotesInput(prev => ({ ...prev, [d.id]: e.target.value }))}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNote(d.id);
+                                      }}
+                                    />
+                                    <button
+                                      className="btn-primary"
+                                      style={{ fontSize: '.78rem', alignSelf: 'flex-end', padding: '6px 14px' }}
+                                      onClick={() => saveNote(d.id)}
+                                      disabled={notesSaving || !(notesInput[d.id] || '').trim()}
+                                    >
+                                      {notesSaving ? '…' : '✚ Ajouter'}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Fil des notes */}
+                                {notesLoading && !notesData[d.id] ? (
+                                  <div style={{ color: 'var(--txt3)', fontSize: '.82rem' }}>Chargement…</div>
+                                ) : (notesData[d.id] || []).length === 0 ? (
+                                  <div style={{ color: 'var(--txt3)', fontSize: '.82rem', fontStyle: 'italic' }}>
+                                    Aucune note pour ce dossier.
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
+                                    {(notesData[d.id] || []).map(n => (
+                                      <div key={n.id} style={{
+                                        background: 'var(--surface)', borderRadius: 8,
+                                        border: '1px solid var(--border)', padding: '8px 12px',
+                                      }}>
+                                        <div style={{ fontSize: '.75rem', color: 'var(--txt3)', marginBottom: 4 }}>
+                                          {n.auteur?.trim() || 'Inconnu'} · {new Date(n.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                        <div style={{ fontSize: '.83rem', color: 'var(--txt)', whiteSpace: 'pre-wrap' }}>
+                                          {n.contenu}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
