@@ -4,15 +4,16 @@ const express             = require('express');
 const router              = express.Router();
 const DossiersController  = require('../controllers/dossiersController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { ROLES }                   = require('../constants');
 
 // Toutes les routes dossiers nécessitent authentification
 router.use(authenticate);
 
 // ── Rôles autorisés à accéder aux dossiers ────────────────────────────────
-const ROLES_DOSSIERS = ['super_admin', 'role_admin', 'manager',
-                        'role_administratif', 'agent_accueil', 'commercial'];
-const ROLES_ADMIN    = ['super_admin', 'role_admin'];
-const ROLES_CMA      = ['super_admin', 'role_admin', 'role_administratif'];
+const ROLES_DOSSIERS = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.MANAGER,
+                        ROLES.ROLE_ADMINISTRATIF, ROLES.AGENT_ACCUEIL, ROLES.COMMERCIAL];
+const ROLES_ADMIN    = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN];
+const ROLES_CMA      = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.ROLE_ADMINISTRATIF];
 
 /**
  * GET /api/dossiers
@@ -29,7 +30,7 @@ router.get('/', authorize(...ROLES_DOSSIERS), DossiersController.list);
 router.get('/kpis', authorize(...ROLES_DOSSIERS), async (req, res) => {
   try {
     const DossierModel = require('../models/Dossier');
-    const agenceId = ['super_admin', 'role_admin'].includes(req.user.role_nom)
+    const agenceId = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN].includes(req.user.role_nom)
       ? req.query.agence_id || null
       : req.user.agence_id;
     const kpis = await DossierModel.getKpis(agenceId);
@@ -62,7 +63,7 @@ router.get('/:id', authorize(...ROLES_DOSSIERS), DossiersController.getOne);
  */
 router.post(
   '/',
-  authorize('super_admin', 'role_admin', 'role_administratif'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.ROLE_ADMINISTRATIF),
   DossiersController.create
 );
 

@@ -4,11 +4,12 @@ const express                 = require('express');
 const router                  = express.Router();
 const CommissionsController   = require('../controllers/commissionsController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { ROLES }               = require('../constants');
 
 router.use(authenticate);
 
-const ROLES_READ  = ['super_admin','role_admin','manager','commercial'];
-const ROLES_ADMIN = ['super_admin','role_admin','manager'];
+const ROLES_READ  = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.MANAGER, ROLES.COMMERCIAL];
+const ROLES_ADMIN = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.MANAGER];
 
 /**
  * GET /api/commissions/taux
@@ -23,7 +24,7 @@ router.get('/taux', authorize(...ROLES_READ), CommissionsController.getTaux);
  * SUPER_ADMIN uniquement
  * Body : { role_nom, taux_base?, taux_supplement_equipe? }
  */
-router.patch('/taux', authorize('super_admin'), CommissionsController.updateTaux);
+router.patch('/taux', authorize(ROLES.SUPER_ADMIN), CommissionsController.updateTaux);
 
 /**
  * GET /api/commissions/mes-commissions
@@ -90,7 +91,7 @@ router.get(
  */
 router.get(
   '/simulation',
-  authorize('super_admin', 'role_admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN),
   CommissionsController.simulerTaux
 );
 

@@ -4,6 +4,7 @@ const express         = require('express');
 const router          = express.Router();
 const LeadsController = require('../controllers/leadsController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { ROLES }       = require('../constants');
 
 // Toutes les routes leads nécessitent authentification
 router.use(authenticate);
@@ -28,7 +29,7 @@ router.get('/:id', LeadsController.getOne);
  */
 router.post(
   '/',
-  authorize('super_admin', 'role_admin', 'manager', 'agent_accueil'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.MANAGER, ROLES.AGENT_ACCUEIL),
   LeadsController.create
 );
 
@@ -66,7 +67,7 @@ router.post('/:id/interactions', LeadsController.logInteraction);
  */
 router.post(
   '/:id/reassign',
-  authorize('super_admin', 'role_admin', 'manager'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.MANAGER),
   LeadsController.reassign
 );
 
@@ -89,7 +90,7 @@ router.get('/:id/historique', LeadsController.getHistorique);
  */
 router.delete(
   '/:id',
-  authorize('super_admin', 'role_admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN),
   LeadsController.remove
 );
 

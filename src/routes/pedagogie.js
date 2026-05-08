@@ -4,13 +4,14 @@ const express              = require('express');
 const router               = express.Router();
 const PedagogieController  = require('../controllers/pedagogieController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { ROLES }                   = require('../constants');
 
 router.use(authenticate);
 
 // ── Rôles ─────────────────────────────────────────────────────────────────
-const ROLES_PEDA   = ['super_admin','role_admin','role_administratif'];
-const ROLES_READ   = ['super_admin','role_admin','role_administratif','manager','commercial'];
-const ROLES_AGENT  = ['super_admin','role_admin']; // sync CMA et config
+const ROLES_PEDA   = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.ROLE_ADMINISTRATIF];
+const ROLES_READ   = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN, ROLES.ROLE_ADMINISTRATIF, ROLES.MANAGER, ROLES.COMMERCIAL];
+const ROLES_AGENT  = [ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN]; // sync CMA et config
 
 /**
  * POST /api/pedagogie/dossiers/:dossierId/inscrire
@@ -105,7 +106,7 @@ router.get(
  */
 router.patch(
   '/agent-cma/config',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   PedagogieController.updateSyncConfig
 );
 

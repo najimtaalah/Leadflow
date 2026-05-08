@@ -4,6 +4,7 @@ const express          = require('express');
 const router           = express.Router();
 const UsersController  = require('../controllers/usersController');
 const { authenticate, authorize } = require('../middleware/auth');
+const { ROLES }        = require('../constants');
 
 // Toutes les routes users nécessitent d'être authentifié
 router.use(authenticate);
@@ -27,7 +28,7 @@ router.patch('/me', UsersController.updateMe);
  */
 router.get(
   '/',
-  authorize('super_admin', 'role_admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN),
   UsersController.list
 );
 
@@ -37,7 +38,7 @@ router.get(
  */
 router.get(
   '/:id',
-  authorize('super_admin', 'role_admin'),
+  authorize(ROLES.SUPER_ADMIN, ROLES.ROLE_ADMIN),
   UsersController.getOne
 );
 
@@ -48,7 +49,7 @@ router.get(
  */
 router.post(
   '/',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   UsersController.create
 );
 
@@ -59,7 +60,7 @@ router.post(
  */
 router.patch(
   '/:id',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   UsersController.update
 );
 
@@ -70,7 +71,7 @@ router.patch(
  */
 router.delete(
   '/:id',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   UsersController.remove
 );
 
@@ -81,7 +82,7 @@ router.delete(
  */
 router.post(
   '/:id/reset-password',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   UsersController.resetPassword
 );
 
@@ -92,7 +93,7 @@ router.post(
  */
 router.get(
   '/:id/logs',
-  authorize('super_admin'),
+  authorize(ROLES.SUPER_ADMIN),
   UsersController.getLogs
 );
 
