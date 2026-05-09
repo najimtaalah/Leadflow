@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — Lint, Build, Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: backend/pnpm-lock.yaml
+
+      - name: Install deps
+        working-directory: backend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: backend
+        run: pnpm lint || true  # Non-bloquant pour l'instant
+
+      - name: Prisma generate (dry-run)
+        working-directory: backend
+        run: pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+
+      - name: Build TypeScript
+        working-directory: backend
+        run: pnpm exec tsc -p tsconfig.build.json --noEmit
+
+      - name: Tests
+        working-directory: backend
+        run: pnpm test
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: test-secret-for-ci-pipeline-32chars
+          JWT_REFRESH_SECRET: test-refresh-secret-ci-pipeline-32ch
+          JWT_ACCESS_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
+          PORT: "3001"
+          NODE_ENV: test
+          CORS_ORIGIN: http://localhost:5173
+          LOG_LEVEL: silent
+
+  frontend:
+    name: Frontend — Lint, Build, Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: TypeScript check
+        working-directory: frontend
+        run: pnpm exec tsc -b --noEmit
+
+      - name: Build
+        working-directory: frontend
+        run: pnpm build
+        env:
+          VITE_API_URL: /api

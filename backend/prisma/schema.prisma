@@ -1,0 +1,494 @@
+// LeadFlow+ — Schéma Prisma complet
+// Toutes les entités du modèle de données validé
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Rôles utilisateurs ───────────────────────────────────────────────────────
+
+enum Role {
+  COMMERCIAL
+  CLOSER
+  GESTIONNAIRE
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ─── Statuts ──────────────────────────────────────────────────────────────────
+
+enum LeadStatus {
+  NOUVEAU
+  CONTACTE
+  INTERESSE
+  RENDEZ_VOUS
+  QUALIFIE
+  PROPOSITION
+  GAGNE
+  PERDU
+  ABANDONNE
+}
+
+enum DossierStatus {
+  EN_COURS
+  EN_ATTENTE
+  INCOMPLET
+  VALIDE
+  REFUSE
+  ARCHIVE
+}
+
+enum PreDossierStatus {
+  BROUILLON
+  SOUMIS
+  EN_COURS
+  VALIDE
+  REFUSE
+}
+
+enum SessionType {
+  COURS
+  EDOF
+  THEORIE
+  PRATIQUE
+}
+
+enum SessionStatus {
+  PLANIFIEE
+  EN_COURS
+  TERMINEE
+  ANNULEE
+  REPORTEE
+}
+
+enum TentativeStatus {
+  EN_ATTENTE
+  REUSSIE
+  ECHOUEE
+  ABSENTE
+}
+
+enum ExamenType {
+  BLANC
+  OFFICIEL
+}
+
+enum ExamenStatus {
+  PLANIFIE
+  EN_COURS
+  TERMINE
+  ANNULE
+}
+
+enum FinancementType {
+  CPF
+  OPCO
+  POLE_EMPLOI
+  PRIVE
+  ENTREPRISE
+  AUTRE
+}
+
+enum FinancementStatus {
+  EN_ATTENTE
+  ACCORDE
+  REFUSE
+  PARTIEL
+  REMBOURSE
+}
+
+enum DocumentType {
+  CONVENTION
+  ATTESTATION_PRESENCE
+  FEUILLE_EMARGEMENT
+  ATTESTATION_FIN_FORMATION
+  CERTIFICAT
+  FACTURE
+  DEVIS
+  AUTRE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  STATUS_CHANGE
+}
+
+// ─── Utilisateurs & Auth ──────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  role           Role
+  isActive       Boolean  @default(true)
+  lastLoginAt    DateTime?
+  refreshTokens  RefreshToken[]
+
+  // Relations
+  leadsAsCommercial   Lead[]        @relation("CommercialLead")
+  leadsAsCloser       Lead[]        @relation("CloserLead")
+  affectations        Affectation[]
+  auditLogs           AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ─── Entreprises ─────────────────────────────────────────────────────────────
+
+model Entreprise {
+  id          String   @id @default(cuid())
+  raisonSociale String
+  siret       String?  @unique
+  siren       String?
+  adresse     String?
+  codePostal  String?
+  ville       String?
+  telephone   String?
+  email       String?
+  siteWeb     String?
+  secteurActivite String?
+
+  apprenants  Apprenant[]
+  financements Financement[]
+  leads       Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([siret])
+}
+
+// ─── Leads ────────────────────────────────────────────────────────────────────
+
+model Lead {
+  id              String     @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String
+  telephone       String?
+  status          LeadStatus @default(NOUVEAU)
+  source          String?    // ex: "site web", "recommandation", "salon"
+  notes           String?
+  dateContact     DateTime?
+  dateRelance     DateTime?
+
+  // Assignations
+  commercialId    String?
+  commercial      User?      @relation("CommercialLead", fields: [commercialId], references: [id])
+  closerId        String?
+  closer          User?      @relation("CloserLead", fields: [closerId], references: [id])
+
+  // Relation entreprise (optionnel)
+  entrepriseId    String?
+  entreprise      Entreprise? @relation(fields: [entrepriseId], references: [id])
+
+  // Conversion
+  preDossier      PreDossier?
+  apprenant       Apprenant?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([commercialId])
+  @@index([closerId])
+  @@index([email])
+}
+
+// ─── Apprenants ───────────────────────────────────────────────────────────────
+
+model Apprenant {
+  id              String   @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String   @unique
+  telephone       String?
+  dateNaissance   DateTime?
+  adresse         String?
+  codePostal      String?
+  ville           String?
+  nationalite     String?
+  nir             String?  // Numéro de Sécurité Sociale — champ sensible RGPD
+
+  // Permis / formation
+  categoriePermis String?  // ex: "B", "BE", "C", "CE"
+  niveauFormation String?
+
+  // Relation lead d'origine
+  leadId          String?  @unique
+  lead            Lead?    @relation(fields: [leadId], references: [id])
+
+  // Relation entreprise
+  entrepriseId    String?
+  entreprise      Entreprise? @relation(fields: [entrepriseId], references: [id])
+
+  dossiers        Dossier[]
+  preDossiers     PreDossier[]
+  affectations    Affectation[]
+  documents       Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([leadId])
+}
+
+// ─── Pré-dossiers ─────────────────────────────────────────────────────────────
+
+model PreDossier {
+  id              String           @id @default(cuid())
+  status          PreDossierStatus @default(BROUILLON)
+  formation       String
+  objectif        String?
+  noteInterne     String?
+
+  // Liens
+  leadId          String?  @unique
+  lead            Lead?    @relation(fields: [leadId], references: [id])
+  apprenantId     String?
+  apprenant       Apprenant? @relation(fields: [apprenantId], references: [id])
+
+  // Converti en dossier ?
+  dossierId       String?  @unique
+  dossier         Dossier? @relation(fields: [dossierId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([apprenantId])
+}
+
+// ─── Dossiers ─────────────────────────────────────────────────────────────────
+
+model Dossier {
+  id              String        @id @default(cuid())
+  reference       String        @unique // ex: "DOS-2024-001"
+  status          DossierStatus @default(EN_COURS)
+  formation       String
+  objectif        String?
+  noteInterne     String?
+  dateDebut       DateTime?
+  dateFin         DateTime?
+
+  // Apprenant
+  apprenantId     String
+  apprenant       Apprenant @relation(fields: [apprenantId], references: [id])
+
+  // Relations
+  preDossier      PreDossier?
+  sessions        Session[]
+  documents       Document[]
+  financements    Financement[]
+  examens         Examen[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([apprenantId])
+  @@index([reference])
+}
+
+// ─── Sessions ─────────────────────────────────────────────────────────────────
+
+model Session {
+  id              String        @id @default(cuid())
+  type            SessionType
+  status          SessionStatus @default(PLANIFIEE)
+  titre           String
+  description     String?
+  dateDebut       DateTime
+  dateFin         DateTime
+  dureeHeures     Float?
+  lieu            String?
+  formateurNom    String?
+  maxApprenants   Int?
+
+  // Dossier associé
+  dossierId       String
+  dossier         Dossier @relation(fields: [dossierId], references: [id])
+
+  // Affectations (apprenants sur la session)
+  affectations    Affectation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+  @@index([dateDebut])
+  @@index([type])
+}
+
+// ─── Affectations ─────────────────────────────────────────────────────────────
+
+model Affectation {
+  id          String   @id @default(cuid())
+  presence    Boolean?
+  noteInterne String?
+  datePresence DateTime?
+
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+
+  apprenantId String
+  apprenant   Apprenant @relation(fields: [apprenantId], references: [id])
+
+  // Gestionnaire qui a validé
+  gestionnairId String?
+  gestionnaire  User?   @relation(fields: [gestionnairId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sessionId, apprenantId])
+  @@index([sessionId])
+  @@index([apprenantId])
+}
+
+// ─── Tentatives ───────────────────────────────────────────────────────────────
+
+model Tentative {
+  id          String          @id @default(cuid())
+  numero      Int             // Numéro de la tentative (1, 2, 3...)
+  status      TentativeStatus @default(EN_ATTENTE)
+  dateTentative DateTime
+  score       Float?
+  noteInterne String?
+
+  examenId    String
+  examen      Examen @relation(fields: [examenId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([examenId])
+}
+
+// ─── Examens ──────────────────────────────────────────────────────────────────
+
+model Examen {
+  id          String       @id @default(cuid())
+  type        ExamenType
+  status      ExamenStatus @default(PLANIFIE)
+  categorie   String?      // catégorie de permis, certification
+  centre      String?
+  dateExamen  DateTime?
+  resultat    Boolean?     // true = réussi
+  noteInterne String?
+
+  dossierId   String
+  dossier     Dossier @relation(fields: [dossierId], references: [id])
+
+  tentatives  Tentative[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+
+model Document {
+  id          String       @id @default(cuid())
+  type        DocumentType
+  titre       String
+  fileName    String?
+  filePath    String?      // chemin relatif ou S3 key — jamais de données sensibles inline
+  fileSize    Int?
+  mimeType    String?
+  genere      Boolean      @default(false) // généré automatiquement vs uploadé manuellement
+  dateGeneration DateTime?
+  noteInterne String?
+
+  dossierId   String?
+  dossier     Dossier? @relation(fields: [dossierId], references: [id])
+
+  apprenantId String?
+  apprenant   Apprenant? @relation(fields: [apprenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+  @@index([type])
+}
+
+// ─── Financements ─────────────────────────────────────────────────────────────
+
+model Financement {
+  id              String            @id @default(cuid())
+  type            FinancementType
+  status          FinancementStatus @default(EN_ATTENTE)
+  organisme       String?
+  montantDemande  Float?
+  montantAccorde  Float?
+  reference       String?           // référence dossier OPCO/CPF
+  dateAccord      DateTime?
+  noteInterne     String?
+
+  dossierId       String
+  dossier         Dossier @relation(fields: [dossierId], references: [id])
+
+  entrepriseId    String?
+  entreprise      Entreprise? @relation(fields: [entrepriseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dossierId])
+  @@index([type])
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  action      AuditAction
+  entityType  String      // ex: "Lead", "Dossier", "User"
+  entityId    String
+  before      Json?       // snapshot avant changement
+  after       Json?       // snapshot après changement
+  ipAddress   String?
+  userAgent   String?
+
+  userId      String?
+  user        User? @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

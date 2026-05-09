@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base */
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    --foreground-muted: 220 8.9% 46.1%;
+    --foreground-subtle: 220 8.9% 62%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 224 71.4% 4.1%;
+    --radius: 6px;
+
+    /* Primary */
+    --primary: 220.9 39.3% 11%;
+    --primary-foreground: 210 20% 98%;
+
+    /* Secondary */
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+
+    /* Muted */
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+
+    /* Accent */
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+
+    /* Sidebar — Density Pro */
+    --sidebar-bg: 220 13% 97%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-item-hover: 220 13% 93%;
+    --sidebar-item-active: 220 13% 89%;
+    --sidebar-icon: 220 8.9% 55%;
+
+    /* Status badges */
+    --status-gray: 220 8.9% 40%;
+    --status-gray-bg: 220 14.3% 93%;
+    --status-blue: 217 91.2% 42%;
+    --status-blue-bg: 214 94.6% 93%;
+    --status-orange: 24.6 95% 43%;
+    --status-orange-bg: 34.9 100% 91%;
+    --status-green: 142.4 71.8% 29%;
+    --status-green-bg: 138.5 76.5% 90%;
+    --status-red: 0 72.2% 45%;
+    --status-red-bg: 0 93.5% 93%;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
