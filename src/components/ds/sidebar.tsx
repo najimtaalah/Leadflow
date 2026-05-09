@@ -1,0 +1,107 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import type { LucideIcon } from "lucide-react";
+
+export interface SidebarNavItem {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  count?: number;
+  badge?: string;
+}
+
+export interface SidebarSection {
+  title?: string;
+  items: SidebarNavItem[];
+}
+
+interface SidebarProps {
+  sections: SidebarSection[];
+  activeId?: string;
+  collapsed?: boolean;
+  logo?: React.ReactNode;
+  footer?: React.ReactNode;
+}
+
+export function Sidebar({ sections, activeId, collapsed = false, logo, footer }: SidebarProps) {
+  return (
+    <aside
+      className={cn(
+        "flex flex-col h-full bg-sidebar-bg border-r border-sidebar-border shrink-0 transition-all duration-200",
+        collapsed ? "w-[48px]" : "w-[200px]"
+      )}
+    >
+      {/* Logo area */}
+      {logo && (
+        <div className={cn("flex items-center h-[44px] px-3 border-b border-sidebar-border shrink-0", collapsed && "justify-center")}>
+          {logo}
+        </div>
+      )}
+
+      {/* Nav sections */}
+      <nav className="flex-1 overflow-y-auto py-1">
+        {sections.map((section, i) => (
+          <div key={i} className="mb-1">
+            {section.title && !collapsed && (
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+                {section.title}
+              </p>
+            )}
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.id === activeId;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={cn(
+                    "group flex items-center gap-2 mx-1 px-2 h-[30px] rounded-[5px] text-[13px] transition-colors",
+                    isActive
+                      ? "bg-sidebar-item-active text-foreground font-medium"
+                      : "text-foreground-muted hover:bg-sidebar-item-hover hover:text-foreground",
+                    collapsed && "justify-center px-0 w-[36px]"
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <Icon
+                    className={cn(
+                      "shrink-0 transition-colors",
+                      collapsed ? "h-[15px] w-[15px]" : "h-[14px] w-[14px]",
+                      isActive ? "text-foreground" : "text-sidebar-icon group-hover:text-foreground"
+                    )}
+                  />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {item.count !== undefined && (
+                        <span className="text-[11px] text-foreground-subtle tabular-nums">
+                          {item.count > 99 ? "99+" : item.count}
+                        </span>
+                      )}
+                      {item.badge && (
+                        <span className="text-[10px] font-medium bg-accent text-accent-foreground px-1 rounded-[3px]">
+                          {item.badge}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      {footer && (
+        <div className={cn("border-t border-sidebar-border p-2", collapsed && "flex justify-center")}>
+          {footer}
+        </div>
+      )}
+    </aside>
+  );
+}
