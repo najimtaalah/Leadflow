@@ -52,6 +52,8 @@ app.use('/api/imports',      require('./routes/imports'));
 app.use('/api/prelevements', require('./routes/prelevements'));
 app.use('/api/agent',       require('./routes/agent'));
 app.use('/api/taches',      require('./routes/taches'));
+app.use('/api/apprenants',  require('./routes/apprenants'));
+app.use('/api/predossiers', require('./routes/predossiers'));
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

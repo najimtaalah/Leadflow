@@ -163,10 +163,10 @@ const DossierModel = {
       'nom', 'prenom', 'telephone', 'email', 'formation_souhaitee',
       'statut_id', 'agence_id', 'vendeur_id', 'archived',
       'cout_total_formation', 'part_financeur', 'fp_manuel',
-      'frais_cma', 'frais_cma_paye', 'notes',
+      'frais_cma', 'frais_cma_paye',
       'session_cours_id', 'session_edof_id', 'examen_id',
       'apprenant_id', 'id_lead_origine', 'type_financement',
-      'reference_financeur', 'numero_cma',
+      'reference_financeur', 'numero_cma', 'numero_dossier_edof',
     ];
     const updates = []; const params = [];
     const accepted = {};

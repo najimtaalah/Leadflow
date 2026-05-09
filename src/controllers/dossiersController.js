@@ -143,8 +143,10 @@ const DossiersController = {
       if (!dossier) return res.status(404).json({ success: false, message: 'Dossier introuvable.' });
 
       const allowed = ['nom', 'prenom', 'telephone', 'email', 'formation_souhaitee',
-                       'statut_id', 'notes', 'cout_total_formation', 'part_financeur', 'fp_manuel',
-                       'session_cours_id', 'session_edof_id', 'examen_id'];
+                       'statut_id', 'cout_total_formation', 'part_financeur', 'fp_manuel',
+                       'session_cours_id', 'session_edof_id', 'examen_id',
+                       'apprenant_id', 'id_lead_origine', 'type_financement',
+                       'reference_financeur', 'numero_cma', 'numero_dossier_edof'];
       const updates = {};
       for (const key of allowed) {
         if (req.body[key] !== undefined) updates[key] = req.body[key];
