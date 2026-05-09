@@ -4,7 +4,14 @@ const express        = require('express');
 const router         = express.Router();
 const AuthController = require('../controllers/authController');
 const { authenticate }    = require('../middleware/auth');
-const { loginLimiter }    = require('../middleware/rateLimiter');
+const { loginLimiter, registerLimiter } = require('../middleware/rateLimiter');
+
+/**
+ * POST /api/auth/register
+ * UC-05 — Création de compte (auto-inscription)
+ * Rate limited : 5 créations / heure par IP
+ */
+router.post('/register', registerLimiter, AuthController.register);
 
 /**
  * POST /api/auth/login

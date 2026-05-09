@@ -5,6 +5,7 @@ import Layout from './components/layout/Layout';
 
 // Pages communes
 import Login      from './pages/Login';
+import Register   from './pages/Register';
 import Dashboard  from './pages/Dashboard';
 import Leads      from './pages/Leads';
 import Dossiers   from './pages/Dossiers';
@@ -50,7 +51,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login"    element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         <Route
           path="/"

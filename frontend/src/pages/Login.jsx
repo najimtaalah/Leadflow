@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import useAuthStore from '../store/authStore';
 
@@ -106,7 +106,10 @@ export default function Login() {
           </form>
 
           <p style={styles.hint}>
-            Pas encore de compte ? Contactez votre administrateur.
+            Pas encore de compte ?{' '}
+            <Link to="/register" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
+              Créer un identifiant
+            </Link>
           </p>
         </div>
       </div>

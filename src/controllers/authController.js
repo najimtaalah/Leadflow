@@ -14,10 +14,15 @@ const {
 } = require('../middleware/rateLimiter');
 const logger = require('../utils/logger');
 
+const db = require('../config/database');
+
 // ── Validation simple ────────────────────────────────────────────────────────
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
+
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 const AuthController = {
 
@@ -168,6 +173,123 @@ const AuthController = {
     } catch (err) {
       logger.error('Erreur logout', { error: err.message });
       return res.status(500).json({ success: false, message: 'Erreur serveur.' });
+    }
+  },
+
+  // ── UC-05 : Création de compte (auto-inscription) ─────────────────────────
+  async register(req, res) {
+    const { prenom, nom, email, password, password_confirmation } = req.body;
+    const ip = req.ip;
+
+    // Validation champs obligatoires
+    if (!email || !password || !password_confirmation || !prenom || !nom) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: 'Prénom, nom, email, mot de passe et confirmation sont obligatoires.',
+      });
+    }
+
+    if (!validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: 'Format d\'email invalide.',
+      });
+    }
+
+    if (password.length < PASSWORD_MIN_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`,
+      });
+    }
+
+    if (!PASSWORD_REGEX.test(password)) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: 'Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre.',
+      });
+    }
+
+    if (password !== password_confirmation) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: 'Les mots de passe ne correspondent pas.',
+      });
+    }
+
+    const prenomTrim = prenom.trim();
+    const nomTrim    = nom.trim();
+
+    if (!prenomTrim || !nomTrim) {
+      return res.status(400).json({
+        success: false,
+        code:    'VALIDATION_ERROR',
+        message: 'Prénom et nom ne peuvent pas être vides.',
+      });
+    }
+
+    try {
+      // Vérifier unicité email
+      const emailTaken = await UserModel.emailExists(email);
+      if (emailTaken) {
+        return res.status(409).json({
+          success: false,
+          code:    'EMAIL_EXISTS',
+          message: 'Un compte avec cet email existe déjà.',
+        });
+      }
+
+      // Récupérer l'id du rôle par défaut (commercial)
+      const [[role]] = await db.query(
+        `SELECT id FROM roles WHERE nom = 'commercial' LIMIT 1`
+      );
+      if (!role) {
+        logger.error('Rôle commercial introuvable — inscription impossible');
+        return res.status(500).json({
+          success: false,
+          code:    'SERVER_ERROR',
+          message: 'Erreur de configuration serveur.',
+        });
+      }
+
+      const password_hash = await bcrypt.hash(password, 12);
+
+      const userId = await UserModel.create({
+        prenom:        prenomTrim,
+        nom:           nomTrim,
+        email,
+        password_hash,
+        role_id:       role.id,
+        agence_id:     null,
+      });
+
+      await LogModel.create({
+        action:     'register',
+        user_id:    userId,
+        details:    { email: email.toLowerCase().trim(), role: 'commercial' },
+        ip_address: ip,
+      });
+
+      logger.info('Nouveau compte créé', { user_id: userId, email });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Compte créé avec succès. Vous pouvez maintenant vous connecter.',
+        data: { id: userId },
+      });
+
+    } catch (err) {
+      logger.error('Erreur register', { error: err.message, email });
+      return res.status(500).json({
+        success: false,
+        code:    'SERVER_ERROR',
+        message: 'Erreur serveur. Réessayez plus tard.',
+      });
     }
   },
 

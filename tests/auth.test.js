@@ -10,6 +10,23 @@
 
 const request = require('supertest');
 const app     = require('../src/app');
+const db      = require('../src/config/database');
+
+// Purge les tentatives de connexion échouées entre les runs pour éviter les lockouts accumulés
+beforeAll(async () => {
+  await db.query(`DELETE FROM logs_systeme WHERE action = 'login_failed'`);
+});
+
+afterAll(async () => {
+  // Supprimer d'abord les logs (FK child) puis les users (FK parent)
+  await db.query(`
+    DELETE ls FROM logs_systeme ls
+    INNER JOIN users u ON ls.user_id = u.id
+    WHERE u.email LIKE 'test.register.%@leadflow.fr'
+  `);
+  await db.query(`DELETE FROM users WHERE email LIKE 'test.register.%@leadflow.fr'`);
+  await db.end?.();
+});
 
 // ── Données de test ──────────────────────────────────────────────────────────
 const ADMIN_CREDENTIALS = {
@@ -264,6 +281,152 @@ describe('UC-04 — Accès refusé — droits insuffisants', () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ok');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// UC-05 — AUTO-INSCRIPTION (création de compte)
+// ════════════════════════════════════════════════════════════════
+describe('UC-05 — Auto-inscription', () => {
+
+  const uniqueEmail = () => `test.register.${Date.now()}@leadflow.fr`;
+
+  test('✅ Création de compte réussie avec données valides', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom:                'Marie',
+        nom:                   'Dupont',
+        email:                 uniqueEmail(),
+        password:              'TestRegister2026!',
+        password_confirmation: 'TestRegister2026!',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.id).toBeDefined();
+    expect(res.body.message).toMatch(/créé/i);
+  });
+
+  test('❌ Champs obligatoires manquants → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ email: uniqueEmail(), password: 'TestRegister2026!' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('❌ Format email invalide → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom: 'Jean', nom: 'Test',
+        email: 'pas_un_email',
+        password: 'TestRegister2026!',
+        password_confirmation: 'TestRegister2026!',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('❌ Mot de passe trop court (< 8 chars) → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom: 'Jean', nom: 'Test',
+        email: uniqueEmail(),
+        password: 'Abc1',
+        password_confirmation: 'Abc1',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('❌ Mot de passe sans majuscule/chiffre → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom: 'Jean', nom: 'Test',
+        email: uniqueEmail(),
+        password: 'sansChiffre!',
+        password_confirmation: 'sansChiffre!',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('❌ Mots de passe ne correspondent pas → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom: 'Jean', nom: 'Test',
+        email: uniqueEmail(),
+        password: 'TestRegister2026!',
+        password_confirmation: 'AutreMotDePasse2026!',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('❌ Email déjà utilisé → 409', async () => {
+    const email = uniqueEmail();
+    // Créer le premier compte
+    await request(app).post('/api/auth/register').send({
+      prenom: 'Premier', nom: 'Compte',
+      email, password: 'TestRegister2026!', password_confirmation: 'TestRegister2026!',
+    });
+    // Tenter de créer un doublon
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        prenom: 'Doublon', nom: 'Compte',
+        email, password: 'TestRegister2026!', password_confirmation: 'TestRegister2026!',
+      });
+
+    expect(res.status).toBe(409);
+    expect(res.body.code).toBe('EMAIL_EXISTS');
+  });
+
+  test('✅ Le compte créé peut se connecter immédiatement', async () => {
+    const email    = uniqueEmail();
+    const password = 'TestRegister2026!';
+
+    await request(app).post('/api/auth/register').send({
+      prenom: 'Login', nom: 'Test',
+      email, password, password_confirmation: password,
+    });
+
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password });
+
+    expect(loginRes.status).toBe(200);
+    expect(loginRes.body.success).toBe(true);
+    expect(loginRes.body.token).toBeDefined();
+    expect(loginRes.body.user.email).toBe(email);
+    expect(loginRes.body.user.role).toBe('commercial');
+  });
+
+  test('✅ password_hash non exposé après création ni en connexion', async () => {
+    const email    = uniqueEmail();
+    const password = 'TestRegister2026!';
+
+    const regRes = await request(app).post('/api/auth/register').send({
+      prenom: 'SecTest', nom: 'Hash',
+      email, password, password_confirmation: password,
+    });
+
+    expect(regRes.body.data?.password_hash).toBeUndefined();
+    expect(regRes.body.data?.password).toBeUndefined();
+
+    const loginRes = await request(app).post('/api/auth/login').send({ email, password });
+    expect(loginRes.body.user.password_hash).toBeUndefined();
+    expect(loginRes.body.user.password).toBeUndefined();
   });
 });
 

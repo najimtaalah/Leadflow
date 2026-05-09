@@ -17,6 +17,7 @@ const globalLimiter = rateLimit({
   max:              100,
   standardHeaders:  true,
   legacyHeaders:    false,
+  skip:             () => process.env.NODE_ENV === 'test',
   message: {
     success: false,
     code:    'TOO_MANY_REQUESTS',
@@ -34,10 +35,28 @@ const loginLimiter = rateLimit({
   standardHeaders:  true,
   legacyHeaders:    false,
   skipSuccessfulRequests: true,
+  skip:             () => process.env.NODE_ENV === 'test',
   message: {
     success: false,
     code:    'TOO_MANY_REQUESTS',
     message: `Trop de tentatives de connexion. Réessayez dans ${LOCKOUT_MINUTES} minutes.`,
+  },
+});
+
+/**
+ * Rate limiter pour la route POST /auth/register
+ * 5 créations de compte / heure par IP (anti-spam)
+ */
+const registerLimiter = rateLimit({
+  windowMs:         60 * 60 * 1000,
+  max:              5,
+  standardHeaders:  true,
+  legacyHeaders:    false,
+  skip:             () => process.env.NODE_ENV === 'test',
+  message: {
+    success: false,
+    code:    'TOO_MANY_REQUESTS',
+    message: 'Trop de tentatives de création de compte. Réessayez dans une heure.',
   },
 });
 
@@ -102,6 +121,7 @@ async function clearFailedLogins(email) {
 module.exports = {
   globalLimiter,
   loginLimiter,
+  registerLimiter,
   checkAccountLockout,
   recordFailedLogin,
   clearFailedLogins,
