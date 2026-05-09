@@ -2,15 +2,6 @@
 
 const db = require('../config/database');
 
-/**
- * Tâches liées aux dossiers
- * Table auto-créée : taches
- *
- * Statuts : en_attente | en_cours | fait | incomplet
- * Types   : affecter_session_edof | affecter_session_cours | affecter_examen
- *           creation_espace_cma   | depot_dossier_cma     | paiement_examen_cma
- */
-
 const TACHE_TITRES = {
   affecter_session_edof:  'Affecter session EDOF',
   affecter_session_cours: 'Affecter session cours',
@@ -29,28 +20,10 @@ const TACHES_PAR_DOSSIER = [
   'paiement_examen_cma',
 ];
 
-async function ensureTable() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS taches (
-      id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      dossier_id   INT UNSIGNED NOT NULL,
-      type         VARCHAR(50)  NOT NULL,
-      titre        VARCHAR(150) NOT NULL,
-      statut       ENUM('en_attente','en_cours','fait','incomplet') NOT NULL DEFAULT 'en_attente',
-      assigned_to  INT UNSIGNED NULL,
-      notes        TEXT         NULL,
-      created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP,
-      updated_at   DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      FOREIGN KEY (dossier_id) REFERENCES dossiers(id) ON DELETE CASCADE
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `);
-}
-
 const TacheModel = {
 
   /** Génère les tâches standard pour un nouveau dossier */
   async createForDossier(dossierId) {
-    await ensureTable();
     const rows = TACHES_PAR_DOSSIER.map(type => [
       dossierId, type, TACHE_TITRES[type], 'en_attente',
     ]);
@@ -71,7 +44,6 @@ const TacheModel = {
 
   /** Liste des tâches (filtrée selon le rôle) */
   async findAll({ dossier_id, statut, assigned_to, agence_id, vendeur_id, limit = 100, offset = 0 } = {}) {
-    await ensureTable();
     let where = 'WHERE 1=1';
     const params = [];
 

@@ -67,28 +67,9 @@ async function getStatutActifId() {
   }
 }
 
-/** Ensure historique_imports table exists */
-async function ensureHistoriqueTable() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS historique_imports (
-      id           INT AUTO_INCREMENT PRIMARY KEY,
-      type         VARCHAR(20)  NOT NULL,
-      fichier      VARCHAR(255),
-      nb_lignes    INT          DEFAULT 0,
-      nb_importes  INT          DEFAULT 0,
-      nb_maj       INT          DEFAULT 0,
-      nb_erreurs   INT          DEFAULT 0,
-      user_id      INT,
-      created_at   DATETIME     DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-  `);
-}
-
-/** Save import to historique_imports (uses existing imports_jobs if available) */
+/** Save import to historique_imports */
 async function saveHistorique({ type, fichier, nb_lignes, nb_importes, nb_maj, nb_erreurs, user_id }) {
   try {
-    // Try historique_imports first
-    await ensureHistoriqueTable();
     await db.query(
       `INSERT INTO historique_imports (type, fichier, nb_lignes, nb_importes, nb_maj, nb_erreurs, user_id, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,

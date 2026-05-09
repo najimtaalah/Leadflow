@@ -5,42 +5,6 @@ const LogModel    = require('../models/Log');
 const logger      = require('../utils/logger');
 const sepaService = require('../services/sepaService');
 
-/**
- * Ajoute les colonnes SEPA à dossiers si elles n'existent pas encore
- */
-async function ensureSepaColumns() {
-  const cols = [
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS iban              VARCHAR(34)  NULL`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS bic               VARCHAR(11)  NULL`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS mandat_ref        VARCHAR(60)  NULL`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS mandat_date       DATE         NULL`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS prelevement_actif TINYINT(1)   NOT NULL DEFAULT 0`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS provider_customer_id  VARCHAR(100) NULL`,
-    `ALTER TABLE dossiers ADD COLUMN IF NOT EXISTS provider_mandate_id   VARCHAR(100) NULL`,
-  ];
-  for (const sql of cols) {
-    try { await db.query(sql); } catch (_) { /* colonne déjà présente */ }
-  }
-  // Table log prélèvements
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS prelevements_log (
-      id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      echeance_id   INT UNSIGNED NOT NULL,
-      dossier_id    INT UNSIGNED NOT NULL,
-      montant       DECIMAL(10,2) NOT NULL,
-      mode          VARCHAR(20)  NOT NULL DEFAULT 'simulation',
-      provider_ref  VARCHAR(100) NULL,
-      statut        ENUM('succes','echec','en_cours') NOT NULL DEFAULT 'en_cours',
-      message       TEXT NULL,
-      created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (dossier_id) REFERENCES dossiers(id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  `).catch(() => {});
-}
-
-/* ── initialisation au démarrage ── */
-ensureSepaColumns().catch(err => logger.warn('ensureSepaColumns', { err: err.message }));
-
 /* ──────────────────────────────────────────────────────────
    GET /api/prelevements/status
    Retourne le mode actif + les stats des prélèvements

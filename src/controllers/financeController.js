@@ -106,13 +106,6 @@ const FinanceController = {
     }
 
     try {
-      // Ajouter colonne prelevement_auto si elle n'existe pas encore
-      try {
-        await require('../config/database').query(
-          `ALTER TABLE echeances ADD COLUMN IF NOT EXISTS prelevement_auto TINYINT(1) NOT NULL DEFAULT 0`
-        );
-      } catch (_) { /* colonne déjà présente ou DB ne supporte pas IF NOT EXISTS */ }
-
       const resume = await FinanceModel.getResumeDossier(dossierId);
       if (!resume) {
         return res.status(404).json({ success: false, message: 'Dossier introuvable.' });

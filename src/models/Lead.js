@@ -98,7 +98,8 @@ const LeadModel = {
   /** Met à jour un lead */
   async update(id, fields) {
     const allowed = ['nom', 'prenom', 'telephone', 'email', 'source_id',
-                     'formation_souhaitee', 'vendeur_id', 'agence_id', 'statut', 'notes'];
+                     'formation_souhaitee', 'vendeur_id', 'agence_id', 'statut', 'notes',
+                     'badge_pre_dossier'];
     const updates = []; const params = [];
     for (const [key, val] of Object.entries(fields)) {
       if (allowed.includes(key)) { updates.push(`${key} = ?`); params.push(val); }

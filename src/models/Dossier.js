@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../config/database');
+const JournalDossier = require('./JournalDossier');
 
 const DossierModel = {
 
@@ -122,47 +123,72 @@ const DossierModel = {
   },
 
   /** Crée un dossier avec numéro automatique */
-  async create({ lead_id, nom, prenom, telephone, email,
+  async create({ lead_id, apprenant_id, nom, prenom, telephone, email,
                  formation_souhaitee, agence_id, vendeur_id, statut_id,
                  session_cours_id, session_edof_id, examen_id,
-                 cout_total_formation, part_financeur, reference }) {
+                 cout_total_formation, part_financeur,
+                 type_financement, reference_financeur, numero_cma,
+                 reference }) {
     const ref = reference || await this.generateReference();
+    const id_lead_origine = lead_id || null;
     const [result] = await db.query(
       `INSERT INTO dossiers
-         (reference, lead_id, nom, prenom, telephone, email,
+         (reference, lead_id, apprenant_id, id_lead_origine,
+          nom, prenom, telephone, email,
           formation_souhaitee, agence_id, vendeur_id, statut_id,
           session_cours_id, session_edof_id, examen_id,
           cout_total_formation, part_financeur,
+          type_financement, reference_financeur, numero_cma,
           frais_cma_paye, archived, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW(), NOW())`,
-      [ref, lead_id || null, nom, prenom || '', telephone,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NOW(), NOW())`,
+      [ref, id_lead_origine, apprenant_id || null, id_lead_origine,
+       nom, prenom || '', telephone,
        email || null, formation_souhaitee || null,
        agence_id || null, vendeur_id || null, statut_id || null,
        session_cours_id || null, session_edof_id || null, examen_id || null,
-       cout_total_formation || null, part_financeur || null]
+       cout_total_formation || null, part_financeur || null,
+       type_financement || null, reference_financeur || null, numero_cma || null]
     );
-    return { id: result.insertId, reference: ref };
+    const dossierId = result.insertId;
+    await JournalDossier.create({ dossier_id: dossierId, action: 'created' });
+    return { id: dossierId, reference: ref };
   },
 
-  /** Met à jour un dossier */
-  async update(id, fields) {
+  /**
+   * Met à jour un dossier.
+   * Génère automatiquement les entrées de journal pour chaque champ modifié.
+   */
+  async update(id, fields, { user_id = null } = {}) {
     const allowed = [
       'nom', 'prenom', 'telephone', 'email', 'formation_souhaitee',
       'statut_id', 'agence_id', 'vendeur_id', 'archived',
       'cout_total_formation', 'part_financeur', 'fp_manuel',
       'frais_cma', 'frais_cma_paye', 'notes',
       'session_cours_id', 'session_edof_id', 'examen_id',
+      'apprenant_id', 'id_lead_origine', 'type_financement',
+      'reference_financeur', 'numero_cma',
     ];
     const updates = []; const params = [];
+    const accepted = {};
     for (const [key, val] of Object.entries(fields)) {
-      if (allowed.includes(key)) { updates.push(`${key} = ?`); params.push(val); }
+      if (allowed.includes(key)) {
+        updates.push(`${key} = ?`);
+        params.push(val);
+        accepted[key] = val;
+      }
     }
     if (!updates.length) return false;
+
+    const [[before]] = await db.query(
+      `SELECT ${Object.keys(accepted).join(',')} FROM dossiers WHERE id = ?`,
+      [id]
+    );
     params.push(id);
     await db.query(
       `UPDATE dossiers SET ${updates.join(', ')}, updated_at = NOW() WHERE id = ?`,
       params
     );
+    await JournalDossier.createChanges(id, before || {}, accepted, user_id);
     return true;
   },
 
