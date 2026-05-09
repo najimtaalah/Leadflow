@@ -1,0 +1,27 @@
+name: Deploy — crm-new.mywebapps.fr
+
+on:
+  push:
+    branches: ["crm-new/main"]
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script: |
+            cd /opt/leadflow-crm-new
+            sudo git pull origin 'crm-new/main'
+            sudo COMPOSE_PROJECT_NAME=leadflow-crm-new docker compose -f docker-compose.prod.yml up -d --build
+            sleep 8
+            sudo COMPOSE_PROJECT_NAME=leadflow-crm-new docker compose -f docker-compose.prod.yml exec -T backend npx prisma migrate deploy 2>&1 || true
+            curl -sf https://crm-new.mywebapps.fr/api/health
+            echo "Deploy OK"
