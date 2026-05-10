@@ -167,6 +167,7 @@ export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, curre
             pct={qualiopiPct}
             covered={coveredCount}
             applicable={applicableCount}
+            dossierId={dossier.id}
             canExport={['non_planifie', 'planifie'].includes(dossier.statut) && permissions.canViewAll}
           />
         )}
@@ -468,11 +469,12 @@ function TabHistorique({ auditLog }: { auditLog: AuditLog[] }) {
   );
 }
 
-function TabQualiopi({ criteres, pct, covered, applicable, canExport }: {
+function TabQualiopi({ criteres, pct, covered, applicable, dossierId, canExport }: {
   criteres: QualiopiCritere[];
   pct: number;
   covered: number;
   applicable: number;
+  dossierId: string;
   canExport: boolean;
 }) {
   const ICONS = {
@@ -496,7 +498,11 @@ function TabQualiopi({ criteres, pct, covered, applicable, canExport }: {
             <p className="text-[11px] text-foreground-muted">Taux de conformité Qualiopi</p>
           </div>
           {canExport && (
-            <Button size="sm" variant="outline">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => { window.location.href = `/api/dossiers/${dossierId}/export-zip`; }}
+            >
               <Download className="h-3.5 w-3.5 mr-1.5" />
               Exporter dossier de preuve (ZIP)
             </Button>
