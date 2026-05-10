@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import {
   Users, FolderOpen, Bell, DollarSign, BarChart2,
-  GraduationCap, Zap, Settings, ChevronRight
+  GraduationCap, Zap, CalendarDays, ClipboardList, BookOpen, Car
 } from "lucide-react";
 import { Sidebar } from "@/components/ds/sidebar";
 import type { SidebarSection } from "@/components/ds/sidebar";
@@ -25,6 +25,10 @@ export function CrmSidebar({ relancesEnRetard, currentUserRole, currentUserName 
     if (pathname.startsWith('/relances')) return 'relances';
     if (pathname.startsWith('/commissions')) return 'commissions';
     if (pathname.startsWith('/performance')) return 'performance';
+    if (pathname.startsWith('/sessions/cours')) return 'sessions-cours';
+    if (pathname.startsWith('/sessions/edof')) return 'sessions-edof';
+    if (pathname.startsWith('/sessions/examens-theoriques')) return 'sessions-theoriques';
+    if (pathname.startsWith('/sessions/examens-pratiques')) return 'sessions-pratiques';
     return '';
   };
 
@@ -43,6 +47,15 @@ export function CrmSidebar({ relancesEnRetard, currentUserRole, currentUserName 
       items: [
         { id: 'apprenants', label: 'Apprenants', href: '/apprenants', icon: GraduationCap },
         { id: 'dossiers', label: 'Dossiers', href: '/dossiers', icon: FolderOpen },
+      ],
+    },
+    {
+      title: 'Sessions',
+      items: [
+        { id: 'sessions-cours', label: 'Formations', href: '/sessions/cours', icon: CalendarDays },
+        { id: 'sessions-edof', label: 'EDOF / CPF', href: '/sessions/edof', icon: ClipboardList },
+        { id: 'sessions-theoriques', label: 'Examens théoriques', href: '/sessions/examens-theoriques', icon: BookOpen },
+        { id: 'sessions-pratiques', label: 'Examens pratiques', href: '/sessions/examens-pratiques', icon: Car },
       ],
     },
   ];
@@ -66,6 +79,7 @@ export function CrmSidebar({ relancesEnRetard, currentUserRole, currentUserName 
             <p className="text-[11px] font-medium text-foreground truncate">{currentUserName}</p>
             <p className="text-[10px] text-foreground-muted truncate">{currentUserRole.replace('_', ' ')}</p>
           </div>
+          <a href="/login" className="text-[10px] text-foreground-subtle hover:text-foreground transition-colors shrink-0" title="Changer de compte">⇄</a>
         </div>
       }
     />

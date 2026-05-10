@@ -1,60 +1,102 @@
-import { getDb } from './index';
-import { seedIfEmpty } from './seed';
+import { prisma } from './prisma';
 import type {
   Apprenant, ApprenantWithRelations, Dossier, DossierWithRelations,
   PieceJustificative, AuditLog, BlocStatut, TypeFinancement,
-  FormationType, Formule
+  FormationType, Formule,
 } from './types';
 
 export function initDb(): void {
-  getDb();
-  seedIfEmpty();
+  // no-op — Prisma connects lazily; seeding done at container start
 }
 
-// ---------- APPRENANTS ----------
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export function getApprenants(filters: { restricted_commercial_id?: string } = {}): ApprenantWithRelations[] {
-  const db = getDb();
-  let where = '1=1';
-  const params: string[] = [];
-
-  if (filters.restricted_commercial_id) {
-    where += ' AND (d.commercial_id = ? OR l.commercial_id = ?)';
-    params.push(filters.restricted_commercial_id, filters.restricted_commercial_id);
-  }
-
-  return db.prepare(`
-    SELECT a.*, l.prenom AS lead_prenom, l.nom AS lead_nom,
-      (SELECT COUNT(*) FROM dossiers d2 WHERE d2.id_apprenant = a.id) AS nb_dossiers
-    FROM apprenants a
-    LEFT JOIN leads l ON a.id_lead_origine = l.id
-    LEFT JOIN dossiers d ON d.id_apprenant = a.id
-    WHERE ${where}
-    GROUP BY a.id
-    ORDER BY a.nom ASC
-  `).all(...params) as ApprenantWithRelations[];
+function toIso(d: Date | null | undefined): string | null {
+  return d ? d.toISOString() : null;
 }
 
-export function getApprenantById(id: string): ApprenantWithRelations | null {
-  const db = getDb();
-  return db.prepare(`
-    SELECT a.*, l.prenom AS lead_prenom, l.nom AS lead_nom,
-      (SELECT COUNT(*) FROM dossiers d WHERE d.id_apprenant = a.id) AS nb_dossiers
-    FROM apprenants a
-    LEFT JOIN leads l ON a.id_lead_origine = l.id
-    WHERE a.id = ?
-  `).get(id) as ApprenantWithRelations | null;
+// ─── APPRENANTS ───────────────────────────────────────────────────────────────
+
+export async function getApprenants(
+  filters: { restricted_commercial_id?: string } = {},
+): Promise<ApprenantWithRelations[]> {
+  const rows = await prisma.apprenant.findMany({
+    where: filters.restricted_commercial_id
+      ? {
+          OR: [
+            { dossiers: { some: { commercial_id: filters.restricted_commercial_id } } },
+            { lead: { commercial_id: filters.restricted_commercial_id } },
+          ],
+        }
+      : {},
+    include: {
+      lead: { select: { prenom: true, nom: true } },
+      _count: { select: { dossiers: true } },
+    },
+    orderBy: { nom: 'asc' },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    id_lead_origine: r.id_lead_origine,
+    prenom: r.prenom,
+    nom: r.nom,
+    date_naissance: r.date_naissance,
+    lieu_naissance: r.lieu_naissance,
+    nationalite: r.nationalite,
+    email: r.email,
+    telephone: r.telephone,
+    adresse: r.adresse,
+    code_postal: r.code_postal,
+    ville: r.ville,
+    statut: r.statut as Apprenant['statut'],
+    created_at: r.created_at.toISOString(),
+    updated_at: r.updated_at.toISOString(),
+    lead_prenom: r.lead?.prenom ?? null,
+    lead_nom: r.lead?.nom ?? null,
+    nb_dossiers: r._count.dossiers,
+  }));
 }
 
-export function updateApprenant(id: string, data: Partial<Pick<Apprenant, 'prenom' | 'nom' | 'date_naissance' | 'lieu_naissance' | 'nationalite' | 'email' | 'telephone' | 'adresse' | 'code_postal' | 'ville'>>): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const sets = Object.keys(data).map(k => `${k} = ?`).join(', ');
-  const vals = [...Object.values(data), now, id];
-  db.prepare(`UPDATE apprenants SET ${sets}, updated_at = ? WHERE id = ?`).run(...vals);
+export async function getApprenantById(id: string): Promise<ApprenantWithRelations | null> {
+  const r = await prisma.apprenant.findUnique({
+    where: { id },
+    include: {
+      lead: { select: { prenom: true, nom: true } },
+      _count: { select: { dossiers: true } },
+    },
+  });
+  if (!r) return null;
+  return {
+    id: r.id,
+    id_lead_origine: r.id_lead_origine,
+    prenom: r.prenom,
+    nom: r.nom,
+    date_naissance: r.date_naissance,
+    lieu_naissance: r.lieu_naissance,
+    nationalite: r.nationalite,
+    email: r.email,
+    telephone: r.telephone,
+    adresse: r.adresse,
+    code_postal: r.code_postal,
+    ville: r.ville,
+    statut: r.statut as Apprenant['statut'],
+    created_at: r.created_at.toISOString(),
+    updated_at: r.updated_at.toISOString(),
+    lead_prenom: r.lead?.prenom ?? null,
+    lead_nom: r.lead?.nom ?? null,
+    nb_dossiers: r._count.dossiers,
+  };
 }
 
-// ---------- DOSSIERS ----------
+export async function updateApprenant(
+  id: string,
+  data: Partial<Pick<Apprenant, 'prenom' | 'nom' | 'date_naissance' | 'lieu_naissance' | 'nationalite' | 'email' | 'telephone' | 'adresse' | 'code_postal' | 'ville'>>,
+): Promise<void> {
+  await prisma.apprenant.update({ where: { id }, data });
+}
+
+// ─── DOSSIERS ─────────────────────────────────────────────────────────────────
 
 export interface DossierFilters {
   statut?: string[];
@@ -69,119 +111,151 @@ export interface DossierFilters {
   restricted_commercial_id?: string;
 }
 
-export function getDossiers(filters: DossierFilters = {}): DossierWithRelations[] {
-  const db = getDb();
-  const where: string[] = ['1=1'];
-  const params: (string | number)[] = [];
+export async function getDossiers(filters: DossierFilters = {}): Promise<DossierWithRelations[]> {
+  const rows = await prisma.dossier.findMany({
+    where: {
+      ...(filters.restricted_commercial_id && { commercial_id: filters.restricted_commercial_id }),
+      ...(filters.statut?.length && { statut: { in: filters.statut as Dossier['statut'][] } }),
+      ...(filters.statut_bloc_admin && { statut_bloc_admin: filters.statut_bloc_admin as BlocStatut }),
+      ...(filters.statut_bloc_financier && { statut_bloc_financier: filters.statut_bloc_financier as BlocStatut }),
+      ...(filters.formation_type?.length && { formation_type: { in: filters.formation_type as FormationType[] } }),
+      ...(filters.type_financement?.length && { type_financement: { in: filters.type_financement as TypeFinancement[] } }),
+      ...(filters.gestionnaire_id && { gestionnaire_id: filters.gestionnaire_id }),
+      ...(filters.date_debut && { date_creation: { gte: new Date(filters.date_debut) } }),
+      ...(filters.date_fin && { date_creation: { lte: new Date(filters.date_fin) } }),
+    },
+    include: {
+      apprenant: { select: { prenom: true, nom: true } },
+      commercial: { select: { prenom: true, nom: true } },
+      gestionnaire: { select: { prenom: true, nom: true } },
+    },
+    orderBy: { date_creation: 'desc' },
+  });
 
-  if (filters.restricted_commercial_id) {
-    where.push('d.commercial_id = ?');
-    params.push(filters.restricted_commercial_id);
-  }
-  if (filters.statut?.length) {
-    where.push(`d.statut IN (${filters.statut.map(() => '?').join(',')})`);
-    params.push(...filters.statut);
-  }
-  if (filters.statut_bloc_admin) {
-    where.push('d.statut_bloc_admin = ?');
-    params.push(filters.statut_bloc_admin);
-  }
-  if (filters.statut_bloc_financier) {
-    where.push('d.statut_bloc_financier = ?');
-    params.push(filters.statut_bloc_financier);
-  }
-  if (filters.formation_type?.length) {
-    where.push(`d.formation_type IN (${filters.formation_type.map(() => '?').join(',')})`);
-    params.push(...filters.formation_type);
-  }
-  if (filters.type_financement?.length) {
-    where.push(`d.type_financement IN (${filters.type_financement.map(() => '?').join(',')})`);
-    params.push(...filters.type_financement);
-  }
-  if (filters.gestionnaire_id) {
-    where.push('d.gestionnaire_id = ?');
-    params.push(filters.gestionnaire_id);
-  }
-  if (filters.date_debut) {
-    where.push('d.date_creation >= ?');
-    params.push(filters.date_debut);
-  }
-  if (filters.date_fin) {
-    where.push('d.date_creation <= ?');
-    params.push(filters.date_fin);
-  }
-
-  return db.prepare(`
-    SELECT d.*,
-      a.prenom AS apprenant_prenom, a.nom AS apprenant_nom,
-      uc.prenom AS commercial_prenom, uc.nom AS commercial_nom,
-      ug.prenom AS gestionnaire_prenom, ug.nom AS gestionnaire_nom
-    FROM dossiers d
-    JOIN apprenants a ON d.id_apprenant = a.id
-    LEFT JOIN users uc ON d.commercial_id = uc.id
-    LEFT JOIN users ug ON d.gestionnaire_id = ug.id
-    WHERE ${where.join(' AND ')}
-    ORDER BY d.date_creation DESC
-  `).all(...params) as DossierWithRelations[];
+  return rows.map(mapDossier);
 }
 
-export function getDossierById(id: string): DossierWithRelations | null {
-  const db = getDb();
-  return db.prepare(`
-    SELECT d.*,
-      a.prenom AS apprenant_prenom, a.nom AS apprenant_nom,
-      uc.prenom AS commercial_prenom, uc.nom AS commercial_nom,
-      ug.prenom AS gestionnaire_prenom, ug.nom AS gestionnaire_nom
-    FROM dossiers d
-    JOIN apprenants a ON d.id_apprenant = a.id
-    LEFT JOIN users uc ON d.commercial_id = uc.id
-    LEFT JOIN users ug ON d.gestionnaire_id = ug.id
-    WHERE d.id = ?
-  `).get(id) as DossierWithRelations | null;
+export async function getDossierById(id: string): Promise<DossierWithRelations | null> {
+  const r = await prisma.dossier.findUnique({
+    where: { id },
+    include: {
+      apprenant: { select: { prenom: true, nom: true } },
+      commercial: { select: { prenom: true, nom: true } },
+      gestionnaire: { select: { prenom: true, nom: true } },
+    },
+  });
+  return r ? mapDossier(r) : null;
 }
 
-export function getDossiersByApprenant(apprenantId: string): DossierWithRelations[] {
-  return getDossiers({ restricted_commercial_id: undefined }).filter(d => d.id_apprenant === apprenantId);
+export async function getDossiersByApprenant(apprenantId: string): Promise<DossierWithRelations[]> {
+  return getDossiers({ restricted_commercial_id: undefined });
 }
 
-export function getPiecesJustificatives(dossierId: string): PieceJustificative[] {
-  const db = getDb();
-  return db.prepare('SELECT * FROM pieces_justificatives WHERE dossier_id = ? ORDER BY type_piece').all(dossierId) as PieceJustificative[];
+function mapDossier(r: {
+  id: string; id_apprenant: string; id_lead_origine: string | null;
+  formation_type: string; formule: string; numero_cma: string | null;
+  type_financement: string | null; reference_financeur: string | null;
+  montant_vendu: number | null; apport_personnel: number | null; montant_prise_en_charge: number | null;
+  commercial_id: string | null; gestionnaire_id: string | null;
+  statut: string; statut_bloc_admin: string; statut_bloc_financier: string;
+  notes: string | null; notes_financier: string | null;
+  date_creation: Date; date_activation: Date | null; updated_at: Date;
+  apprenant: { prenom: string; nom: string };
+  commercial: { prenom: string; nom: string } | null;
+  gestionnaire: { prenom: string; nom: string } | null;
+}): DossierWithRelations {
+  return {
+    id: r.id,
+    id_apprenant: r.id_apprenant,
+    id_lead_origine: r.id_lead_origine,
+    formation_type: r.formation_type as FormationType,
+    formule: r.formule as Formule,
+    numero_cma: r.numero_cma,
+    type_financement: r.type_financement as TypeFinancement | null,
+    reference_financeur: r.reference_financeur,
+    montant_vendu: r.montant_vendu,
+    apport_personnel: r.apport_personnel,
+    montant_prise_en_charge: r.montant_prise_en_charge,
+    commercial_id: r.commercial_id,
+    gestionnaire_id: r.gestionnaire_id,
+    statut: r.statut as Dossier['statut'],
+    statut_bloc_admin: r.statut_bloc_admin as BlocStatut,
+    statut_bloc_financier: r.statut_bloc_financier as BlocStatut,
+    notes: r.notes,
+    notes_financier: r.notes_financier,
+    date_creation: r.date_creation.toISOString(),
+    date_activation: r.date_activation ? r.date_activation.toISOString() : null,
+    updated_at: r.updated_at.toISOString(),
+    apprenant_prenom: r.apprenant.prenom,
+    apprenant_nom: r.apprenant.nom,
+    commercial_prenom: r.commercial?.prenom ?? null,
+    commercial_nom: r.commercial?.nom ?? null,
+    gestionnaire_prenom: r.gestionnaire?.prenom ?? null,
+    gestionnaire_nom: r.gestionnaire?.nom ?? null,
+  };
 }
 
-export function getAuditLog(dossierId: string): AuditLog[] {
-  const db = getDb();
-  return db.prepare(`
-    SELECT al.*, u.prenom AS auteur_prenom, u.nom AS auteur_nom
-    FROM audit_log al
-    LEFT JOIN users u ON al.auteur_id = u.id
-    WHERE al.dossier_id = ?
-    ORDER BY al.created_at DESC
-  `).all(dossierId) as AuditLog[];
+export async function getPiecesJustificatives(dossierId: string): Promise<PieceJustificative[]> {
+  const rows = await prisma.pieceJustificative.findMany({
+    where: { dossier_id: dossierId },
+    orderBy: { type_piece: 'asc' },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    dossier_id: r.dossier_id,
+    type_piece: r.type_piece,
+    fichier_nom: r.fichier_nom,
+    fichier_path: r.fichier_path,
+    date_depot: r.date_depot ? r.date_depot.toISOString() : null,
+    statut: r.statut as PieceJustificative['statut'],
+    motif_rejet: r.motif_rejet,
+    created_at: r.created_at.toISOString(),
+    updated_at: r.updated_at.toISOString(),
+  }));
 }
 
-// ---------- BLOC ADMIN / FINANCIER ----------
+export async function getAuditLog(dossierId: string): Promise<AuditLog[]> {
+  const rows = await prisma.auditLog.findMany({
+    where: { dossier_id: dossierId },
+    include: { auteur: { select: { prenom: true, nom: true } } },
+    orderBy: { created_at: 'desc' },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    dossier_id: r.dossier_id,
+    lead_id: r.lead_id,
+    type_action: r.type_action as AuditLog['type_action'],
+    detail: r.detail,
+    auteur_id: r.auteur_id,
+    auteur_prenom: r.auteur?.prenom ?? null,
+    auteur_nom: r.auteur?.nom ?? null,
+    created_at: r.created_at.toISOString(),
+  }));
+}
 
-export function updateBlocStatut(
+// ─── BLOC ADMIN / FINANCIER ───────────────────────────────────────────────────
+
+export async function updateBlocStatut(
   dossierId: string,
   bloc: 'admin' | 'financier',
   newStatut: BlocStatut,
   auteurId: string,
-  motif?: string
-): void {
-  const db = getDb();
-  const now = new Date().toISOString();
+  motif?: string,
+): Promise<void> {
   const field = bloc === 'admin' ? 'statut_bloc_admin' : 'statut_bloc_financier';
   const actionType = newStatut === 'valide' ? 'bloc_valide' : newStatut === 'rejete' ? 'bloc_rejete' : 'bloc_soumis';
   const detail = motif
     ? `Bloc ${bloc} ${actionType.replace('bloc_', '')} : ${motif}`
     : `Bloc ${bloc} ${actionType.replace('bloc_', '')}`;
 
-  db.transaction(() => {
-    db.prepare(`UPDATE dossiers SET ${field} = ?, updated_at = ? WHERE id = ?`).run(newStatut, now, dossierId);
+  await prisma.$transaction(async (tx) => {
+    await tx.dossier.update({ where: { id: dossierId }, data: { [field]: newStatut } });
 
-    // Auto-update dossier statut
-    const d = db.prepare('SELECT statut_bloc_admin, statut_bloc_financier, statut FROM dossiers WHERE id = ?').get(dossierId) as Pick<Dossier, 'statut_bloc_admin' | 'statut_bloc_financier' | 'statut'>;
+    const d = await tx.dossier.findUniqueOrThrow({
+      where: { id: dossierId },
+      select: { statut: true, statut_bloc_admin: true, statut_bloc_financier: true },
+    });
+
     const adminOk = bloc === 'admin' ? newStatut === 'valide' : d.statut_bloc_admin === 'valide';
     const finOk = bloc === 'financier' ? newStatut === 'valide' : d.statut_bloc_financier === 'valide';
 
@@ -190,15 +264,22 @@ export function updateBlocStatut(
     else if (d.statut === 'pre_dossier') newDossierStatut = 'en_cours';
 
     if (newDossierStatut !== d.statut) {
-      db.prepare('UPDATE dossiers SET statut = ?, updated_at = ? WHERE id = ?').run(newDossierStatut, now, dossierId);
+      await tx.dossier.update({ where: { id: dossierId }, data: { statut: newDossierStatut } });
     }
 
-    db.prepare('INSERT INTO audit_log (id, dossier_id, type_action, detail, auteur_id, created_at) VALUES (?,?,?,?,?,?)')
-      .run(crypto.randomUUID(), dossierId, actionType, detail, auteurId, now);
-  })();
+    await tx.auditLog.create({
+      data: {
+        id: crypto.randomUUID(),
+        dossier_id: dossierId,
+        type_action: actionType,
+        detail,
+        auteur_id: auteurId,
+      },
+    });
+  });
 }
 
-// ---------- OUVERTURE PRÉ-DOSSIER (atomique) ----------
+// ─── OUVERTURE PRÉ-DOSSIER ────────────────────────────────────────────────────
 
 export interface PreDossierInput {
   lead_id: string;
@@ -214,96 +295,169 @@ export interface PreDossierInput {
   notes?: string;
 }
 
-export function ouvrirPreDossier(input: PreDossierInput): { apprenantId: string; dossierId: string } {
-  const db = getDb();
-  const now = new Date().toISOString();
+export async function ouvrirPreDossier(
+  input: PreDossierInput,
+): Promise<{ apprenantId: string; dossierId: string }> {
   const apprenantId = crypto.randomUUID();
   const dossierId = crypto.randomUUID();
 
-  db.transaction(() => {
-    db.prepare(`
-      INSERT INTO apprenants (id, id_lead_origine, prenom, nom, date_naissance, email, telephone, statut, created_at, updated_at)
-      VALUES (?,?,?,?,?,?,?,'pre_actif',?,?)
-    `).run(apprenantId, input.lead_id, input.prenom, input.nom, input.date_naissance, input.email, input.telephone, now, now);
+  const typeSpecifique: Record<string, string[]> = {
+    vtc: ['attestation_medicale'],
+    taxi: ['attestation_medicale', 'attestation_assr'],
+    vmdtr: ['attestation_medicale', 'permis_be'],
+    passerelle_vtc_taxi: ['carte_pro_vtc'],
+    passerelle_taxi_vtc: ['carte_pro_taxi'],
+  };
+  const basePieces = ['piece_identite', 'justif_domicile', 'photo_identite', 'permis_conduire', 'casier_judiciaire'];
+  const allPieces = [...basePieces, ...(typeSpecifique[input.formation_type] ?? [])];
 
-    db.prepare(`
-      INSERT INTO dossiers (id, id_apprenant, id_lead_origine, formation_type, formule, commercial_id, statut, statut_bloc_admin, statut_bloc_financier, notes, date_creation, updated_at)
-      VALUES (?,?,?,?,?,?,'pre_dossier','non_demarre','non_demarre',?,?,?)
-    `).run(dossierId, apprenantId, input.lead_id, input.formation_type, input.formule, input.commercial_id, input.notes ?? null, now, now);
+  await prisma.$transaction(async (tx) => {
+    await tx.apprenant.create({
+      data: {
+        id: apprenantId,
+        id_lead_origine: input.lead_id,
+        prenom: input.prenom,
+        nom: input.nom,
+        date_naissance: input.date_naissance,
+        email: input.email,
+        telephone: input.telephone,
+        statut: 'pre_actif',
+      },
+    });
 
-    db.prepare('UPDATE leads SET badge_pre_dossier = 1, updated_at = ? WHERE id = ?').run(now, input.lead_id);
+    await tx.dossier.create({
+      data: {
+        id: dossierId,
+        id_apprenant: apprenantId,
+        id_lead_origine: input.lead_id,
+        formation_type: input.formation_type,
+        formule: input.formule,
+        commercial_id: input.commercial_id,
+        statut: 'pre_dossier',
+        statut_bloc_admin: 'non_demarre',
+        statut_bloc_financier: 'non_demarre',
+        notes: input.notes ?? null,
+      },
+    });
 
-    db.prepare('INSERT INTO timeline_activites (id, lead_id, type, description, auteur_id, created_at) VALUES (?,?,?,?,?,?)')
-      .run(crypto.randomUUID(), input.lead_id, 'pre_dossier_ouvert', 'Pré-dossier ouvert', input.commercial_id, now);
+    await tx.lead.update({
+      where: { id: input.lead_id },
+      data: { badge_pre_dossier: true },
+    });
 
-    db.prepare('INSERT INTO audit_log (id, dossier_id, lead_id, type_action, detail, auteur_id, created_at) VALUES (?,?,?,?,?,?,?)')
-      .run(crypto.randomUUID(), dossierId, input.lead_id, 'creation_dossier', `Dossier créé depuis lead #${input.lead_id}`, input.commercial_id, now);
+    await tx.timelineActivite.create({
+      data: {
+        id: crypto.randomUUID(),
+        lead_id: input.lead_id,
+        type: 'pre_dossier_ouvert',
+        description: 'Pré-dossier ouvert',
+        auteur_id: input.commercial_id,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        id: crypto.randomUUID(),
+        dossier_id: dossierId,
+        lead_id: input.lead_id,
+        type_action: 'creation_dossier',
+        detail: `Dossier créé depuis lead #${input.lead_id}`,
+        auteur_id: input.commercial_id,
+      },
+    });
 
     if (input.commission != null) {
-      db.prepare(`
-        INSERT INTO commissions (id, lead_id, commercial_id, montant, statut, created_at, updated_at)
-        VALUES (?,?,?,?,'libre',?,?)
-        ON CONFLICT(lead_id) DO UPDATE SET montant = excluded.montant, updated_at = excluded.updated_at
-        WHERE statut = 'libre'
-      `).run(crypto.randomUUID(), input.lead_id, input.commercial_id, input.commission, now, now);
+      await tx.commission.upsert({
+        where: { lead_id: input.lead_id },
+        create: {
+          id: crypto.randomUUID(),
+          lead_id: input.lead_id,
+          commercial_id: input.commercial_id,
+          montant: input.commission,
+          statut: 'libre',
+        },
+        update: { montant: input.commission },
+      });
     }
 
-    // Init pièces obligatoires
-    const pieces = [
-      'piece_identite', 'justif_domicile', 'photo_identite', 'permis_conduire', 'casier_judiciaire',
-    ];
-    const typeSpecifique: Record<string, string[]> = {
-      vtc: ['attestation_medicale'],
-      taxi: ['attestation_medicale', 'attestation_assr'],
-      vmdtr: ['attestation_medicale', 'permis_be'],
-      passerelle_vtc_taxi: ['carte_pro_vtc'],
-      passerelle_taxi_vtc: ['carte_pro_taxi'],
-    };
-    const extras = typeSpecifique[input.formation_type] ?? [];
-    const allPieces = [...pieces, ...extras];
-    const insertPiece = db.prepare('INSERT INTO pieces_justificatives (id, dossier_id, type_piece, statut, created_at, updated_at) VALUES (?,?,?,?,?,?)');
-    for (const p of allPieces) {
-      insertPiece.run(crypto.randomUUID(), dossierId, p, 'a_fournir', now, now);
+    for (const typePiece of allPieces) {
+      await tx.pieceJustificative.create({
+        data: {
+          id: crypto.randomUUID(),
+          dossier_id: dossierId,
+          type_piece: typePiece,
+          statut: 'a_fournir',
+        },
+      });
     }
-  })();
+  });
 
   return { apprenantId, dossierId };
 }
 
-// ---------- ACTIVATION APPRENANT (atomique) ----------
+// ─── ACTIVATION APPRENANT ─────────────────────────────────────────────────────
 
-export function activerApprenant(dossierId: string, adminId: string): void {
-  const db = getDb();
-  const now = new Date().toISOString();
-
-  db.transaction(() => {
-    const dossier = db.prepare('SELECT * FROM dossiers WHERE id = ?').get(dossierId) as Dossier | undefined;
+export async function activerApprenant(dossierId: string, adminId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const dossier = await tx.dossier.findUnique({ where: { id: dossierId } });
     if (!dossier) throw new Error('Dossier introuvable');
     if (dossier.statut_bloc_admin !== 'valide' || dossier.statut_bloc_financier !== 'valide') {
       throw new Error('Les deux blocs doivent être Validé');
     }
 
-    db.prepare("UPDATE dossiers SET statut = 'non_planifie', date_activation = ?, updated_at = ? WHERE id = ?").run(now, now, dossierId);
-    db.prepare("UPDATE apprenants SET statut = 'actif', updated_at = ? WHERE id = ?").run(now, dossier.id_apprenant);
+    await tx.dossier.update({
+      where: { id: dossierId },
+      data: { statut: 'non_planifie', date_activation: new Date() },
+    });
+
+    await tx.apprenant.update({
+      where: { id: dossier.id_apprenant },
+      data: { statut: 'actif' },
+    });
 
     if (dossier.id_lead_origine) {
-      db.prepare("UPDATE leads SET statut = 'gagne', updated_at = ? WHERE id = ?").run(now, dossier.id_lead_origine);
-      db.prepare("UPDATE commissions SET statut = 'figee', date_figement = ?, updated_at = ? WHERE lead_id = ?").run(now, now, dossier.id_lead_origine);
+      await tx.lead.update({
+        where: { id: dossier.id_lead_origine },
+        data: { statut: 'gagne' },
+      });
 
-      const comm = db.prepare('SELECT montant FROM commissions WHERE lead_id = ?').get(dossier.id_lead_origine) as { montant: number | null } | undefined;
-      const commStr = comm?.montant != null ? ` commission figée (${comm.montant.toLocaleString('fr-FR')} €)` : '';
-      const detail = `Apprenant activé — lead → Gagné,${commStr}`;
+      await tx.commission.updateMany({
+        where: { lead_id: dossier.id_lead_origine },
+        data: { statut: 'figee', date_figement: new Date() },
+      });
 
-      db.prepare('INSERT INTO timeline_activites (id, lead_id, type, description, auteur_id, created_at) VALUES (?,?,?,?,?,?)')
-        .run(crypto.randomUUID(), dossier.id_lead_origine, 'changement_statut', detail, null, now);
+      const comm = await tx.commission.findUnique({
+        where: { lead_id: dossier.id_lead_origine },
+        select: { montant: true },
+      });
+      const commStr = comm?.montant != null
+        ? ` commission figée (${comm.montant.toLocaleString('fr-FR')} €)`
+        : '';
+
+      await tx.timelineActivite.create({
+        data: {
+          id: crypto.randomUUID(),
+          lead_id: dossier.id_lead_origine,
+          type: 'changement_statut',
+          description: `Activation apprenant — lead → Gagné,${commStr}`,
+        },
+      });
     }
 
-    db.prepare('INSERT INTO audit_log (id, dossier_id, lead_id, type_action, detail, auteur_id, created_at) VALUES (?,?,?,?,?,?,?)')
-      .run(crypto.randomUUID(), dossierId, dossier.id_lead_origine ?? null, 'apprenant_active', 'Apprenant activé', adminId, now);
-  })();
+    await tx.auditLog.create({
+      data: {
+        id: crypto.randomUUID(),
+        dossier_id: dossierId,
+        lead_id: dossier.id_lead_origine,
+        type_action: 'apprenant_active',
+        detail: 'Apprenant activé',
+        auteur_id: adminId,
+      },
+    });
+  });
 }
 
-// ---------- QUALIOPI ----------
+// ─── QUALIOPI ─────────────────────────────────────────────────────────────────
 
 export interface QualiopiCritere {
   id: string;
@@ -312,55 +466,46 @@ export interface QualiopiCritere {
   source: string;
 }
 
-export function computeQualiopiCriteres(dossierId: string): QualiopiCritere[] {
-  const db = getDb();
-  const dossier = db.prepare('SELECT * FROM dossiers WHERE id = ?').get(dossierId) as Dossier | undefined;
+export async function computeQualiopiCriteres(dossierId: string): Promise<QualiopiCritere[]> {
+  const dossier = await prisma.dossier.findUnique({ where: { id: dossierId } });
   if (!dossier) return [];
 
-  const pieces = db.prepare('SELECT type_piece, statut FROM pieces_justificatives WHERE dossier_id = ?').all(dossierId) as { type_piece: string; statut: string }[];
-  const hasPiece = (type: string, s?: string) => pieces.some(p => p.type_piece === type && (s ? p.statut === s : true));
+  const [pieces, affectation] = await Promise.all([
+    prisma.pieceJustificative.findMany({
+      where: { dossier_id: dossierId },
+      select: { type_piece: true, statut: true },
+    }),
+    prisma.affectation.findUnique({ where: { dossier_id: dossierId } }),
+  ]);
+
+  const hasPiece = (type: string, s?: string) =>
+    pieces.some((p) => p.type_piece === type && (s ? p.statut === s : true));
 
   const blocAdminOk = dossier.statut_bloc_admin === 'valide';
   const blocAdminSoumis = dossier.statut_bloc_admin === 'soumis';
 
+  // Critère 5 — Traçabilité sessions de formation
+  const sessionCoursOk = !!affectation?.session_cours_id;
+  const sessionTheoriqueOk = !!affectation?.session_examen_theorique_id;
+  const sessionPratiqueOk = !!affectation?.session_examen_pratique_id;
+
+  // Critère 7 — Résultats examens
+  const resultatTheoriqueOk = affectation?.resultat_theorique === 'reussi';
+  const resultatPratiqueOk = affectation?.resultat_pratique === 'reussi';
+
   return [
-    {
-      id: 'I1',
-      label: 'Information du public — Formation cataloguée',
-      statut: 'ok',
-      source: 'formations.catalogue',
-    },
-    {
-      id: 'I2a',
-      label: 'Positionnement — Prérequis (bloc admin)',
-      statut: blocAdminOk ? 'ok' : blocAdminSoumis ? 'warning' : 'error',
-      source: 'statut_bloc_admin',
-    },
-    {
-      id: 'I2b',
-      label: 'Positionnement — Évaluation de positionnement',
-      statut: hasPiece('evaluation_positionnement', 'fournie') ? 'ok' : 'error',
-      source: 'documents',
-    },
-    {
-      id: 'I3',
-      label: 'Adaptation — Programme de formation',
-      statut: hasPiece('programme_formation', 'fournie') ? 'ok' : 'error',
-      source: 'documents',
-    },
-    { id: 'I4a', label: 'Suivi — Session de cours affectée', statut: 'error', source: 'sessions (Lot 3)' },
-    { id: 'I4b', label: 'Suivi — Feuille d\'émargement', statut: 'error', source: 'documents (Lot 4)' },
-    { id: 'I5a', label: 'Évaluation — Examen théorie', statut: 'error', source: 'sessions (Lot 3)' },
-    { id: 'I5b', label: 'Évaluation — Résultat théorie', statut: 'error', source: 'sessions_examen (Lot 5)' },
-    { id: 'I5c', label: 'Évaluation — Examen pratique', statut: 'na', source: 'sessions (Lot 3)' },
-    { id: 'I5d', label: 'Évaluation — Résultat pratique', statut: 'na', source: 'sessions_examen (Lot 5)' },
-    { id: 'I6a', label: 'Résultats — Attestation de réalisation', statut: 'error', source: 'documents (Lot 4)' },
-    { id: 'I6b', label: 'Résultats — Certificat de réussite', statut: 'na', source: 'documents (Lot 4)' },
-    {
-      id: 'I7',
-      label: 'Réclamations — Aucune réclamation ouverte non traitée',
-      statut: 'ok',
-      source: 'audit_log',
-    },
+    { id: 'I1', label: 'Information du public — Formation cataloguée', statut: 'ok', source: 'formations.catalogue' },
+    { id: 'I2a', label: 'Positionnement — Prérequis (bloc admin)', statut: blocAdminOk ? 'ok' : blocAdminSoumis ? 'warning' : 'error', source: 'statut_bloc_admin' },
+    { id: 'I2b', label: 'Positionnement — Évaluation de positionnement', statut: hasPiece('evaluation_positionnement', 'fournie') ? 'ok' : 'error', source: 'documents' },
+    { id: 'I3', label: 'Adaptation — Programme de formation', statut: hasPiece('programme_formation', 'fournie') ? 'ok' : 'error', source: 'documents' },
+    { id: 'I4a', label: 'Suivi — Session de cours affectée (C5)', statut: sessionCoursOk ? 'ok' : 'error', source: 'affectations.session_cours_id' },
+    { id: 'I4b', label: "Suivi — Feuille d'émargement", statut: 'error', source: 'documents (Lot 4+)' },
+    { id: 'I5a', label: 'Évaluation — Examen théorique affecté (C5)', statut: sessionTheoriqueOk ? 'ok' : 'error', source: 'affectations.session_examen_theorique_id' },
+    { id: 'I5b', label: 'Évaluation — Résultat théorique (C7)', statut: affectation?.resultat_theorique ? (resultatTheoriqueOk ? 'ok' : 'warning') : 'error', source: 'affectations.resultat_theorique' },
+    { id: 'I5c', label: 'Évaluation — Examen pratique affecté (C5)', statut: sessionPratiqueOk ? 'ok' : sessionTheoriqueOk ? 'warning' : 'na', source: 'affectations.session_examen_pratique_id' },
+    { id: 'I5d', label: 'Évaluation — Résultat pratique (C7)', statut: affectation?.resultat_pratique ? (resultatPratiqueOk ? 'ok' : 'warning') : sessionPratiqueOk ? 'error' : 'na', source: 'affectations.resultat_pratique' },
+    { id: 'I6a', label: 'Résultats — Attestation de réalisation', statut: 'error', source: 'documents (Lot 4+)' },
+    { id: 'I6b', label: 'Résultats — Certificat de réussite', statut: resultatPratiqueOk ? 'warning' : 'na', source: 'documents (Lot 4+)' },
+    { id: 'I7', label: 'Réclamations — Aucune réclamation ouverte non traitée', statut: 'ok', source: 'audit_log' },
   ];
 }

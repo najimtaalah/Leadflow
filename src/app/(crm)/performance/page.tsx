@@ -12,7 +12,7 @@ export default async function PerformancePage({ searchParams }: Props) {
   const user = await getCurrentUser();
   const isAdmin = canViewAllLeads(user);
 
-  const data = getPerformanceCommercials({
+  const data = await getPerformanceCommercials({
     commercial_id: !isAdmin ? user.id : params.commercial || undefined,
     date_debut: params.debut,
     date_fin: params.fin,

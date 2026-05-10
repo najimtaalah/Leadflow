@@ -7,7 +7,7 @@ import { formatDate, formatEuro } from "@/lib/format";
 
 export default async function CommissionsPage() {
   const user = await getCurrentUser();
-  const commissions = getCommissions(
+  const commissions = await getCommissions(
     canViewAllCommissions(user) ? {} : { commercial_id: user.id }
   );
 

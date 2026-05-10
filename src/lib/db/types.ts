@@ -12,6 +12,10 @@ export type TypeFinancement = 'cpf' | 'france_travail' | 'opco' | 'personnel' | 
 export type DossierStatut = 'pre_dossier' | 'en_cours' | 'valide' | 'non_planifie' | 'planifie' | 'annule';
 export type BlocStatut = 'non_demarre' | 'en_cours' | 'soumis' | 'valide' | 'rejete';
 export type PieceStatut = 'a_fournir' | 'fournie' | 'rejetee' | 'validee';
+export type SessionStatut = 'planifie' | 'en_cours' | 'termine' | 'annule';
+export type TypePresence = 'presentiel' | 'distanciel' | 'hybride';
+export type SessionEdofStatut = 'active' | 'cloturee';
+export type ResultatExamen = 'reussi' | 'echoue' | 'absent';
 export type AuditActionType =
   | 'creation_dossier'
   | 'modification_champ'
@@ -187,6 +191,95 @@ export interface AuditLog {
   auteur_prenom: string | null;
   auteur_nom: string | null;
   created_at: string;
+}
+
+export interface SessionCours {
+  id: string;
+  titre: string;
+  date_debut: string;
+  date_fin: string;
+  type_presence: TypePresence;
+  lieu: string | null;
+  formateur: string | null;
+  capacite_max: number;
+  statut: SessionStatut;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionCoursWithCount extends SessionCours {
+  nb_affectations: number;
+}
+
+export interface SessionEdof {
+  id: string;
+  reference_edof: string | null;
+  date_debut: string;
+  date_fin: string;
+  date_fin_cpf: string | null;
+  capacite_max: number;
+  statut: SessionEdofStatut;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionEdofWithCount extends SessionEdof {
+  nb_affectations: number;
+}
+
+export interface SessionExamenTheorique {
+  id: string;
+  date_examen: string;
+  lieu: string | null;
+  organisme: string | null;
+  capacite_max: number;
+  statut: SessionStatut;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionExamenTheoriqueWithCount extends SessionExamenTheorique {
+  nb_affectations: number;
+}
+
+export interface SessionExamenPratique {
+  id: string;
+  date_examen: string;
+  lieu: string | null;
+  organisme: string | null;
+  capacite_max: number;
+  statut: SessionStatut;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionExamenPratiqueWithCount extends SessionExamenPratique {
+  nb_affectations: number;
+}
+
+export interface Affectation {
+  id: string;
+  dossier_id: string;
+  session_cours_id: string | null;
+  session_edof_id: string | null;
+  session_examen_theorique_id: string | null;
+  session_examen_pratique_id: string | null;
+  resultat_theorique: ResultatExamen | null;
+  resultat_pratique: ResultatExamen | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AffectationWithApprenant extends Affectation {
+  apprenant_prenom: string;
+  apprenant_nom: string;
+  apprenant_email: string;
+  dossier_formation_type: string;
+  dossier_statut: DossierStatut;
 }
 
 export interface PerformanceCommercial {

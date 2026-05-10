@@ -26,7 +26,7 @@ export default async function DossiersPage({ searchParams }: Props) {
 
   const toArr = (v: string | string[] | undefined) => v ? (Array.isArray(v) ? v : [v]) : [];
 
-  const dossiers = getDossiers({
+  const dossiers = await getDossiers({
     statut: toArr(params.statut),
     statut_bloc_admin: params.bloc_admin || undefined,
     statut_bloc_financier: params.bloc_fin || undefined,

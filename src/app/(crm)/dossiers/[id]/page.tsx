@@ -10,20 +10,20 @@ import {
   FORMATION_TYPE_LABELS
 } from "@/lib/format";
 
-interface Props { params: Promise<{ id: string }>; tab?: string; }
+interface Props { params: Promise<{ id: string }> }
 
 export default async function DossierPage({ params }: Props) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const dossier = getDossierById(id);
+  const dossier = await getDossierById(id);
   if (!dossier) notFound();
 
-  const [pieces, auditLog, qualiopi, allUsers] = [
+  const [pieces, auditLog, qualiopi, allUsers] = await Promise.all([
     getPiecesJustificatives(id),
     getAuditLog(id),
     computeQualiopiCriteres(id),
     getAllUsers(),
-  ];
+  ]);
 
   const permissions = {
     canValidateBlocAdmin: canValidateBlocAdmin(user),

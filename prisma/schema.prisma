@@ -1,0 +1,428 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  commercial
+  closer_habilite
+  gestionnaire
+  admin
+  super_admin
+}
+
+enum LeadStatut {
+  nouveau
+  qualifie
+  en_cours
+  gagne
+  perdu
+}
+
+enum LeadSource {
+  formulaire_web
+  telephone
+  recommandation
+  autre
+}
+
+enum RelanceType {
+  appel
+  email
+  rdv
+  autre
+}
+
+enum RelanceStatut {
+  a_faire
+  en_retard
+  faite
+}
+
+enum CommissionStatut {
+  libre
+  figee
+}
+
+enum TimelineType {
+  appel
+  message
+  rdv
+  relance
+  note
+  changement_statut
+  pre_dossier_ouvert
+}
+
+enum ApprenantStatut {
+  pre_actif
+  actif
+}
+
+enum FormationType {
+  vtc
+  taxi
+  vmdtr
+  passerelle_vtc_taxi
+  passerelle_taxi_vtc
+}
+
+enum Formule {
+  standard
+  accelere
+  illimite
+  week_end
+  mixte
+}
+
+enum TypeFinancement {
+  cpf
+  france_travail
+  opco
+  personnel
+  autre
+}
+
+enum DossierStatut {
+  pre_dossier
+  en_cours
+  valide
+  non_planifie
+  planifie
+  annule
+}
+
+enum BlocStatut {
+  non_demarre
+  en_cours
+  soumis
+  valide
+  rejete
+}
+
+enum PieceStatut {
+  a_fournir
+  fournie
+  rejetee
+  validee
+}
+
+enum SessionStatut {
+  planifie
+  en_cours
+  termine
+  annule
+}
+
+enum TypePresence {
+  presentiel
+  distanciel
+  hybride
+}
+
+enum SessionEdofStatut {
+  active
+  cloturee
+}
+
+enum ResultatExamen {
+  reussi
+  echoue
+  absent
+}
+
+model User {
+  id         String   @id
+  prenom     String
+  nom        String
+  email      String   @unique
+  role       UserRole
+  created_at DateTime @default(now())
+
+  leads_as_commercial   Lead[]             @relation("CommercialLead")
+  relances              Relance[]
+  commissions           Commission[]
+  timeline_activites    TimelineActivite[]
+  dossiers_commercial   Dossier[]          @relation("DossierCommercial")
+  dossiers_gestionnaire Dossier[]          @relation("DossierGestionnaire")
+  audit_logs            AuditLog[]
+
+  @@map("users")
+}
+
+model Lead {
+  id                String     @id
+  commercial_id     String
+  commercial        User       @relation("CommercialLead", fields: [commercial_id], references: [id])
+  prenom            String
+  nom               String
+  email             String
+  telephone         String
+  source            LeadSource
+  formation_visee   String?
+  statut            LeadStatut @default(nouveau)
+  badge_pre_dossier Boolean    @default(false)
+  notes             String?
+  date_creation     DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+
+  relances           Relance[]
+  commissions        Commission[]
+  timeline_activites TimelineActivite[]
+  apprenant          Apprenant?
+  dossiers           Dossier[]
+  audit_logs         AuditLog[]
+
+  @@index([commercial_id])
+  @@index([statut])
+  @@index([date_creation])
+  @@map("leads")
+}
+
+model Relance {
+  id            String        @id
+  lead_id       String
+  lead          Lead          @relation(fields: [lead_id], references: [id])
+  commercial_id String
+  commercial    User          @relation(fields: [commercial_id], references: [id])
+  type          RelanceType
+  date_prevue   DateTime
+  statut        RelanceStatut @default(a_faire)
+  notes         String?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  @@index([lead_id])
+  @@index([commercial_id])
+  @@index([date_prevue])
+  @@map("relances")
+}
+
+model Commission {
+  id            String           @id
+  lead_id       String           @unique
+  lead          Lead             @relation(fields: [lead_id], references: [id])
+  commercial_id String
+  commercial    User             @relation(fields: [commercial_id], references: [id])
+  montant       Float?
+  statut        CommissionStatut @default(libre)
+  date_figement DateTime?
+  created_at    DateTime         @default(now())
+  updated_at    DateTime         @updatedAt
+
+  @@index([commercial_id])
+  @@map("commissions")
+}
+
+model TimelineActivite {
+  id          String       @id
+  lead_id     String
+  lead        Lead         @relation(fields: [lead_id], references: [id])
+  type        TimelineType
+  description String?
+  auteur_id   String?
+  auteur      User?        @relation(fields: [auteur_id], references: [id])
+  created_at  DateTime     @default(now())
+
+  @@index([lead_id])
+  @@map("timeline_activites")
+}
+
+model Apprenant {
+  id              String          @id
+  id_lead_origine String?         @unique
+  lead            Lead?           @relation(fields: [id_lead_origine], references: [id])
+  prenom          String
+  nom             String
+  date_naissance  String
+  lieu_naissance  String?
+  nationalite     String?
+  email           String
+  telephone       String
+  adresse         String?
+  code_postal     String?
+  ville           String?
+  statut          ApprenantStatut @default(pre_actif)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+
+  dossiers Dossier[]
+
+  @@index([id_lead_origine])
+  @@map("apprenants")
+}
+
+model Dossier {
+  id                      String           @id
+  id_apprenant            String
+  apprenant               Apprenant        @relation(fields: [id_apprenant], references: [id])
+  id_lead_origine         String?
+  lead                    Lead?            @relation(fields: [id_lead_origine], references: [id])
+  formation_type          FormationType
+  formule                 Formule
+  numero_cma              String?
+  type_financement        TypeFinancement?
+  reference_financeur     String?
+  montant_vendu           Float?
+  apport_personnel        Float?
+  montant_prise_en_charge Float?
+  commercial_id           String?
+  commercial              User?            @relation("DossierCommercial", fields: [commercial_id], references: [id])
+  gestionnaire_id         String?
+  gestionnaire            User?            @relation("DossierGestionnaire", fields: [gestionnaire_id], references: [id])
+  statut                  DossierStatut    @default(pre_dossier)
+  statut_bloc_admin       BlocStatut       @default(non_demarre)
+  statut_bloc_financier   BlocStatut       @default(non_demarre)
+  notes                   String?
+  notes_financier         String?
+  date_creation           DateTime         @default(now())
+  date_activation         DateTime?
+  updated_at              DateTime         @updatedAt
+
+  pieces_justificatives PieceJustificative[]
+  audit_logs            AuditLog[]
+  affectation           Affectation?
+
+  @@index([id_apprenant])
+  @@index([id_lead_origine])
+  @@index([statut])
+  @@map("dossiers")
+}
+
+model PieceJustificative {
+  id           String      @id
+  dossier_id   String
+  dossier      Dossier     @relation(fields: [dossier_id], references: [id])
+  type_piece   String
+  fichier_nom  String?
+  fichier_path String?
+  date_depot   DateTime?
+  statut       PieceStatut @default(a_fournir)
+  motif_rejet  String?
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+
+  @@index([dossier_id])
+  @@map("pieces_justificatives")
+}
+
+model SessionCours {
+  id            String        @id
+  titre         String
+  date_debut    DateTime
+  date_fin      DateTime
+  type_presence TypePresence  @default(presentiel)
+  lieu          String?
+  formateur     String?
+  capacite_max  Int           @default(20)
+  statut        SessionStatut @default(planifie)
+  notes         String?
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  affectations Affectation[]
+
+  @@index([date_debut])
+  @@index([statut])
+  @@map("sessions_cours")
+}
+
+model SessionEdof {
+  id             String            @id
+  reference_edof String?
+  date_debut     DateTime
+  date_fin       DateTime
+  date_fin_cpf   DateTime?
+  capacite_max   Int               @default(20)
+  statut         SessionEdofStatut @default(active)
+  notes          String?
+  created_at     DateTime          @default(now())
+  updated_at     DateTime          @updatedAt
+
+  affectations Affectation[]
+
+  @@index([date_debut])
+  @@index([statut])
+  @@map("sessions_edof")
+}
+
+model SessionExamenTheorique {
+  id           String        @id
+  date_examen  DateTime
+  lieu         String?
+  organisme    String?
+  capacite_max Int           @default(30)
+  statut       SessionStatut @default(planifie)
+  notes        String?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  affectations Affectation[]
+
+  @@index([date_examen])
+  @@index([statut])
+  @@map("sessions_examens_theoriques")
+}
+
+model SessionExamenPratique {
+  id           String        @id
+  date_examen  DateTime
+  lieu         String?
+  organisme    String?
+  capacite_max Int           @default(10)
+  statut       SessionStatut @default(planifie)
+  notes        String?
+  created_at   DateTime      @default(now())
+  updated_at   DateTime      @updatedAt
+
+  affectations Affectation[]
+
+  @@index([date_examen])
+  @@index([statut])
+  @@map("sessions_examens_pratiques")
+}
+
+model Affectation {
+  id                          String                  @id
+  dossier_id                  String                  @unique
+  dossier                     Dossier                 @relation(fields: [dossier_id], references: [id])
+  session_cours_id            String?
+  session_cours               SessionCours?           @relation(fields: [session_cours_id], references: [id])
+  session_edof_id             String?
+  session_edof                SessionEdof?            @relation(fields: [session_edof_id], references: [id])
+  session_examen_theorique_id String?
+  session_examen_theorique    SessionExamenTheorique? @relation(fields: [session_examen_theorique_id], references: [id])
+  session_examen_pratique_id  String?
+  session_examen_pratique     SessionExamenPratique?  @relation(fields: [session_examen_pratique_id], references: [id])
+  resultat_theorique          ResultatExamen?
+  resultat_pratique           ResultatExamen?
+  created_at                  DateTime                @default(now())
+  updated_at                  DateTime                @updatedAt
+
+  @@index([session_cours_id])
+  @@index([session_edof_id])
+  @@index([session_examen_theorique_id])
+  @@index([session_examen_pratique_id])
+  @@map("affectations")
+}
+
+model AuditLog {
+  id          String   @id
+  dossier_id  String?
+  dossier     Dossier? @relation(fields: [dossier_id], references: [id])
+  lead_id     String?
+  lead        Lead?    @relation(fields: [lead_id], references: [id])
+  type_action String
+  detail      String?
+  auteur_id   String?
+  auteur      User?    @relation(fields: [auteur_id], references: [id])
+  created_at  DateTime @default(now())
+
+  @@index([dossier_id])
+  @@index([lead_id])
+  @@map("audit_logs")
+}

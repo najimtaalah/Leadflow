@@ -9,10 +9,10 @@ import {
 
 export default async function RelancesPage() {
   const user = await getCurrentUser();
-  const allUsers = getAllUsers();
+  const allUsers = await getAllUsers();
   const commercials = allUsers.filter(u => ['commercial', 'gestionnaire'].includes(u.role));
 
-  const relances = getRelances({
+  const relances = await getRelances({
     restricted_commercial_id: !canViewAllLeads(user) ? user.id : undefined,
   });
 

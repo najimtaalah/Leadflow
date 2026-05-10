@@ -25,7 +25,7 @@ export async function actionUpdateBlocStatut(
     rejeter: 'rejete',
   };
 
-  updateBlocStatut(dossierId, bloc, STATUT_MAP[action], user.id, motif);
+  await updateBlocStatut(dossierId, bloc, STATUT_MAP[action], user.id, motif);
   revalidatePath(`/dossiers/${dossierId}`);
   revalidatePath('/dossiers');
 }
@@ -33,7 +33,7 @@ export async function actionUpdateBlocStatut(
 export async function actionActiverApprenant(dossierId: string) {
   const user = await getCurrentUser();
   if (!canActivateApprenant(user)) throw new Error('Seul un Admin peut activer un apprenant');
-  activerApprenant(dossierId, user.id);
+  await activerApprenant(dossierId, user.id);
   revalidatePath(`/dossiers/${dossierId}`);
   revalidatePath('/dossiers');
   revalidatePath('/leads');

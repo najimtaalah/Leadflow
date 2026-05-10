@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getDb } from './db';
+import { prisma } from './db/prisma';
 import type { User, UserRole } from './db/types';
 
 const DEFAULT_USER_ID = 'u-admin-1';
@@ -7,13 +7,28 @@ const DEFAULT_USER_ID = 'u-admin-1';
 export async function getCurrentUser(): Promise<User> {
   const store = await cookies();
   const userId = store.get('user_id')?.value ?? DEFAULT_USER_ID;
-  const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as User | undefined;
-  if (!user) {
-    const fallback = db.prepare('SELECT * FROM users WHERE id = ?').get(DEFAULT_USER_ID) as User;
-    return fallback;
+  const row = await prisma.user.findUnique({ where: { id: userId } });
+  if (!row) {
+    const fallback = await prisma.user.findUniqueOrThrow({ where: { id: DEFAULT_USER_ID } });
+    return mapUser(fallback);
   }
-  return user;
+  return mapUser(row);
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  const rows = await prisma.user.findMany({ orderBy: { nom: 'asc' } });
+  return rows.map(mapUser);
+}
+
+function mapUser(r: { id: string; prenom: string; nom: string; email: string; role: string; created_at: Date }): User {
+  return {
+    id: r.id,
+    prenom: r.prenom,
+    nom: r.nom,
+    email: r.email,
+    role: r.role as UserRole,
+    created_at: r.created_at.toISOString(),
+  };
 }
 
 export function canViewLead(user: User, commercialId: string): boolean {
@@ -64,9 +79,4 @@ export function canViewAllCommissions(user: User): boolean {
 
 export function hasRole(user: User, roles: UserRole[]): boolean {
   return roles.includes(user.role);
-}
-
-export function getAllUsers(): User[] {
-  const db = getDb();
-  return db.prepare('SELECT * FROM users ORDER BY nom').all() as User[];
 }

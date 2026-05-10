@@ -15,10 +15,11 @@ interface Props { params: Promise<{ id: string }>; }
 export default async function ApprenantDetailPage({ params }: Props) {
   const { id } = await params;
   const user = await getCurrentUser();
-  const apprenant = getApprenantById(id);
+  const [apprenant, dossiers] = await Promise.all([
+    getApprenantById(id),
+    getDossiers({ restricted_commercial_id: undefined }).then(all => all.filter(d => d.id_apprenant === id)),
+  ]);
   if (!apprenant) notFound();
-
-  const dossiers = getDossiers({}).filter(d => d.id_apprenant === id);
 
   return (
     <>

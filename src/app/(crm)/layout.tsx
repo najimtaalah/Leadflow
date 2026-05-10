@@ -7,7 +7,7 @@ import { initDb } from "@/lib/db/dossiers";
 export default async function CrmLayout({ children }: { children: React.ReactNode }) {
   initDb();
   const user = await getCurrentUser();
-  const relancesEnRetard = countRelancesEnRetard(
+  const relancesEnRetard = await countRelancesEnRetard(
     user.role === 'commercial' ? user.id : undefined
   );
 

@@ -162,3 +162,45 @@ export const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
   super_admin: 'Super Admin',
 };
+
+export const SESSION_STATUT_LABELS: Record<string, string> = {
+  planifie: 'Planifié',
+  en_cours: 'En cours',
+  termine: 'Terminé',
+  annule: 'Annulé',
+};
+
+export const SESSION_STATUT_VARIANT: Record<string, string> = {
+  planifie: 'blue',
+  en_cours: 'orange',
+  termine: 'green',
+  annule: 'red',
+};
+
+export const SESSION_EDOF_STATUT_LABELS: Record<string, string> = {
+  active: 'Active',
+  cloturee: 'Clôturée',
+};
+
+export const SESSION_EDOF_STATUT_VARIANT: Record<string, string> = {
+  active: 'green',
+  cloturee: 'gray',
+};
+
+export const TYPE_PRESENCE_LABELS: Record<string, string> = {
+  presentiel: 'Présentiel',
+  distanciel: 'Distanciel',
+  hybride: 'Hybride',
+};
+
+export const RESULTAT_EXAMEN_LABELS: Record<string, string> = {
+  reussi: 'Réussi',
+  echoue: 'Échoué',
+  absent: 'Absent',
+};
+
+export const RESULTAT_EXAMEN_VARIANT: Record<string, string> = {
+  reussi: 'green',
+  echoue: 'red',
+  absent: 'gray',
+};

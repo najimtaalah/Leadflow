@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/format";
 
 export default async function ApprenantPage() {
   const user = await getCurrentUser();
-  const apprenants = getApprenants({
+  const apprenants = await getApprenants({
     restricted_commercial_id: !canViewAllLeads(user) ? user.id : undefined,
   });
 

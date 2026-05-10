@@ -20,7 +20,7 @@ export async function actionChangerStatutLead(leadId: string, newStatut: LeadSta
   if (newStatut === 'gagne') throw new Error('Transition système uniquement');
   const allowed = VALID_TRANSITIONS[oldStatut as LeadStatut] ?? [];
   if (!allowed.includes(newStatut)) throw new Error(`Transition ${oldStatut} → ${newStatut} non autorisée`);
-  updateLeadStatut(leadId, newStatut, user.id, oldStatut);
+  await updateLeadStatut(leadId, newStatut, user.id, oldStatut);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath('/leads');
 }
@@ -29,13 +29,13 @@ export async function actionCreerRelance(data: {
   lead_id: string; type: RelanceType; date_prevue: string; notes?: string; commercial_id: string;
 }) {
   const user = await getCurrentUser();
-  createRelance({ ...data, commercial_id: user.id });
+  await createRelance({ ...data, commercial_id: user.id });
   revalidatePath(`/leads/${data.lead_id}`);
   revalidatePath('/relances');
 }
 
 export async function actionMarquerRelanceFaite(relanceId: string, leadId: string) {
-  markRelanceFaite(relanceId);
+  await markRelanceFaite(relanceId);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath('/relances');
 }
@@ -61,7 +61,7 @@ export async function actionOuvrirPreDossier(formData: FormData) {
     notes: (formData.get('notes') as string) || undefined,
   };
 
-  const { dossierId } = ouvrirPreDossier(input);
+  const { dossierId } = await ouvrirPreDossier(input);
   revalidatePath(`/leads/${lead_id}`);
   revalidatePath('/leads');
   revalidatePath('/dossiers');
@@ -71,7 +71,7 @@ export async function actionOuvrirPreDossier(formData: FormData) {
 export async function actionUpsertCommission(leadId: string, commercialId: string, montant: number | null) {
   const user = await getCurrentUser();
   if (!canModifyLead(user, commercialId)) throw new Error('Non autorisé');
-  upsertCommission(leadId, user.id, montant);
+  await upsertCommission(leadId, user.id, montant);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath('/commissions');
 }
@@ -80,7 +80,7 @@ export async function actionUnlockCommission(leadId: string, dossierId: string, 
   const user = await getCurrentUser();
   if (!canUnlockCommission(user)) throw new Error('Seul un Admin peut déverrouiller une commission');
   if (motif.length < 20) throw new Error('Le motif doit contenir au moins 20 caractères');
-  unlockCommission(leadId, motif, user.id, dossierId);
+  await unlockCommission(leadId, motif, user.id, dossierId);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath('/commissions');
 }

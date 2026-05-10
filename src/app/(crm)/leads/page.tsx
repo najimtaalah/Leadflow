@@ -23,10 +23,10 @@ function toArray(v: string | string[] | undefined): string[] {
 export default async function LeadsPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await getCurrentUser();
-  const allUsers = getAllUsers();
+  const allUsers = await getAllUsers();
   const commercials = allUsers.filter(u => ['commercial', 'gestionnaire'].includes(u.role));
 
-  const leads = getLeads({
+  const leads = await getLeads({
     statut: toArray(params.statut),
     commercial_id: params.commercial || undefined,
     source: toArray(params.source),

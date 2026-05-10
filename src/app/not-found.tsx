@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 export default function NotFound() {
   return (
     <div style={{ padding: 32, fontFamily: "system-ui, sans-serif" }}>

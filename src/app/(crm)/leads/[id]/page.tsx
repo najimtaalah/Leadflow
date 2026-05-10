@@ -18,9 +18,9 @@ interface Props {
 export default async function LeadPage({ params }: Props) {
   const { id } = await params;
   const [lead, user, timeline] = await Promise.all([
-    Promise.resolve(getLeadById(id)),
+    getLeadById(id),
     getCurrentUser(),
-    Promise.resolve(getLeadTimeline(id)),
+    getLeadTimeline(id),
   ]);
 
   if (!lead) notFound();
@@ -28,8 +28,8 @@ export default async function LeadPage({ params }: Props) {
   const canEdit = canModifyLead(user, lead.commercial_id);
   const canPreDossier = canOpenPreDossier(user) && !lead.badge_pre_dossier && !['gagne', 'perdu'].includes(lead.statut);
   const canUnlock = canUnlockCommission(user);
-  const allUsers = getAllUsers();
-  const relances = getRelances({ restricted_commercial_id: undefined }).filter(r => r.lead_id === id);
+  const allUsers = await getAllUsers();
+  const relances = (await getRelances({ restricted_commercial_id: undefined })).filter(r => r.lead_id === id);
 
   return (
     <>
