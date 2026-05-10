@@ -13,6 +13,7 @@ const badgeVariants = cva(
         orange: "bg-status-orange-bg text-status-orange",
         green: "bg-status-green-bg text-status-green",
         red: "bg-status-red-bg text-status-red",
+        violet: "bg-status-violet-bg text-status-violet",
         outline: "border-border bg-transparent text-foreground-muted",
       },
     },

@@ -19,17 +19,27 @@ export function formatPercent(n: number | null | undefined): string {
 }
 
 export const LEAD_STATUT_LABELS: Record<string, string> = {
-  nouveau: 'Nouveau',
+  nouveau: 'Entrant',
+  entrant: 'Entrant',
   qualifie: 'Qualifié',
+  a_relancer: 'À relancer',
   en_cours: 'En cours',
-  gagne: 'Gagné',
+  rdv_planifie: 'RDV planifié',
+  dossier_monte: 'Dossier monté',
+  finance: 'Financé',
+  gagne: 'Financé',
   perdu: 'Perdu',
 };
 
 export const LEAD_STATUT_VARIANT: Record<string, string> = {
   nouveau: 'gray',
+  entrant: 'gray',
   qualifie: 'blue',
-  en_cours: 'orange',
+  a_relancer: 'violet',
+  en_cours: 'violet',
+  rdv_planifie: 'green',
+  dossier_monte: 'orange',
+  finance: 'green',
   gagne: 'green',
   perdu: 'red',
 };
