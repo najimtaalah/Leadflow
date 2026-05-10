@@ -1,0 +1,224 @@
+@import "tailwindcss";
+
+/* ============================================
+   LeadFlow Design System — Density Pro
+   Inspired by Attio / Linear
+   ============================================ */
+
+/* --- Design Tokens (light mode) --- */
+:root {
+  /* Core background layers */
+  --background: oklch(0.99 0 0);
+  --background-subtle: oklch(0.97 0 0);
+  --background-muted: oklch(0.95 0.002 264);
+  --surface: oklch(1 0 0);
+  --surface-hover: oklch(0.97 0.002 264);
+  --surface-active: oklch(0.94 0.004 264);
+
+  /* Borders */
+  --border: oklch(0.90 0.003 264);
+  --border-strong: oklch(0.80 0.004 264);
+
+  /* Text */
+  --foreground: oklch(0.14 0.004 264);
+  --foreground-muted: oklch(0.45 0.006 264);
+  --foreground-subtle: oklch(0.62 0.006 264);
+  --foreground-disabled: oklch(0.75 0.004 264);
+
+  /* Sidebar */
+  --sidebar-bg: oklch(0.97 0.003 264);
+  --sidebar-border: oklch(0.91 0.003 264);
+  --sidebar-item-hover: oklch(0.93 0.004 264);
+  --sidebar-item-active: oklch(0.89 0.006 264);
+  --sidebar-icon: oklch(0.50 0.008 264);
+
+  /* Accent — blue */
+  --accent: oklch(0.55 0.20 255);
+  --accent-hover: oklch(0.48 0.22 255);
+  --accent-subtle: oklch(0.94 0.04 255);
+  --accent-foreground: oklch(1 0 0);
+
+  /* Status colors */
+  --status-gray: oklch(0.50 0.006 264);
+  --status-gray-bg: oklch(0.93 0.003 264);
+  --status-blue: oklch(0.50 0.18 255);
+  --status-blue-bg: oklch(0.94 0.04 255);
+  --status-orange: oklch(0.56 0.18 55);
+  --status-orange-bg: oklch(0.96 0.05 55);
+  --status-green: oklch(0.50 0.18 145);
+  --status-green-bg: oklch(0.94 0.05 145);
+  --status-red: oklch(0.52 0.20 25);
+  --status-red-bg: oklch(0.96 0.05 25);
+  --status-violet: oklch(0.52 0.22 295);
+  --status-violet-bg: oklch(0.94 0.06 295);
+
+  /* Destructive */
+  --destructive: oklch(0.52 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  /* Ring */
+  --ring: oklch(0.55 0.20 255);
+
+  /* Row heights (density) */
+  --row-xs: 28px;
+  --row-sm: 32px;
+  --row-md: 36px;
+  --row-lg: 40px;
+
+  /* Radius */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Font */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", monospace;
+}
+
+/* --- Dark mode (class-based) --- */
+.dark {
+  --background: oklch(0.13 0.004 264);
+  --background-subtle: oklch(0.16 0.005 264);
+  --background-muted: oklch(0.19 0.006 264);
+  --surface: oklch(0.16 0.005 264);
+  --surface-hover: oklch(0.20 0.006 264);
+  --surface-active: oklch(0.23 0.007 264);
+
+  --border: oklch(0.24 0.005 264);
+  --border-strong: oklch(0.32 0.006 264);
+
+  --foreground: oklch(0.95 0.002 264);
+  --foreground-muted: oklch(0.65 0.006 264);
+  --foreground-subtle: oklch(0.50 0.006 264);
+  --foreground-disabled: oklch(0.38 0.004 264);
+
+  --sidebar-bg: oklch(0.15 0.005 264);
+  --sidebar-border: oklch(0.22 0.005 264);
+  --sidebar-item-hover: oklch(0.20 0.006 264);
+  --sidebar-item-active: oklch(0.24 0.008 264);
+  --sidebar-icon: oklch(0.58 0.008 264);
+
+  --accent: oklch(0.60 0.20 255);
+  --accent-hover: oklch(0.55 0.22 255);
+  --accent-subtle: oklch(0.20 0.06 255);
+  --accent-foreground: oklch(1 0 0);
+
+  --status-gray: oklch(0.60 0.008 264);
+  --status-gray-bg: oklch(0.22 0.005 264);
+  --status-blue: oklch(0.65 0.18 255);
+  --status-blue-bg: oklch(0.20 0.08 255);
+  --status-orange: oklch(0.70 0.16 55);
+  --status-orange-bg: oklch(0.22 0.06 55);
+  --status-green: oklch(0.65 0.18 145);
+  --status-green-bg: oklch(0.20 0.07 145);
+  --status-red: oklch(0.68 0.20 25);
+  --status-red-bg: oklch(0.22 0.07 25);
+  --status-violet: oklch(0.65 0.22 295);
+  --status-violet-bg: oklch(0.22 0.08 295);
+
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(1 0 0);
+
+  --ring: oklch(0.60 0.20 255);
+}
+
+/* --- Tailwind v4 theme mapping --- */
+@theme inline {
+  --color-background: var(--background);
+  --color-background-subtle: var(--background-subtle);
+  --color-background-muted: var(--background-muted);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-foreground-disabled: var(--foreground-disabled);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-ring: var(--ring);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-item-hover: var(--sidebar-item-hover);
+  --color-sidebar-item-active: var(--sidebar-item-active);
+  --color-sidebar-icon: var(--sidebar-icon);
+  --color-status-gray: var(--status-gray);
+  --color-status-gray-bg: var(--status-gray-bg);
+  --color-status-blue: var(--status-blue);
+  --color-status-blue-bg: var(--status-blue-bg);
+  --color-status-orange: var(--status-orange);
+  --color-status-orange-bg: var(--status-orange-bg);
+  --color-status-green: var(--status-green);
+  --color-status-green-bg: var(--status-green-bg);
+  --color-status-red: var(--status-red);
+  --color-status-red-bg: var(--status-red-bg);
+  --color-status-violet: var(--status-violet);
+  --color-status-violet-bg: var(--status-violet-bg);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius: var(--radius);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+}
+
+/* --- Base styles --- */
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  height: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+  height: 100%;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Scrollbars — thin, unobtrusive */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 3px;
+}
+
+::selection {
+  background-color: var(--accent-subtle);
+  color: var(--foreground);
+}
