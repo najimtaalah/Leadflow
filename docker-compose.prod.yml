@@ -51,9 +51,12 @@ services:
     ports:
       - "3002:3000"
 
+  # nginx is managed by the host system nginx (port 80/443 conflict with containerised nginx)
+  # Keep this service definition for reference but use the 'nginx' profile to opt-in
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    profiles: ["nginx"]
     ports:
       - "80:80"
       - "443:443"
