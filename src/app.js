@@ -53,6 +53,7 @@ app.use('/api/prelevements', require('./routes/prelevements'));
 app.use('/api/agent',       require('./routes/agent'));
 app.use('/api/taches',      require('./routes/taches'));
 app.use('/api/qualiopi',    require('./routes/qualiopi'));
+app.use('/api/lms',        require('./routes/lms'));
 
 // ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

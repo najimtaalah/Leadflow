@@ -1,0 +1,149 @@
+// LMS T3P — Prisma schema (branche LMS)
+// Ce schéma gère uniquement les tables LMS ; les tables LeadFlow+ restent en SQL natif.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Filiere {
+  taxi
+  vtc
+  vmdtr
+  commun
+}
+
+enum InteractionType {
+  lecture
+  quiz
+  flashcard
+}
+
+enum QuestionType {
+  qcm
+  qrc
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+}
+
+enum ProgressStatus {
+  not_started
+  in_progress
+  done
+}
+
+enum MediaType {
+  image
+  audio
+}
+
+enum MediaStatus {
+  draft
+  generated
+  approved
+}
+
+model Module {
+  id             String   @id @default(cuid())
+  titre          String
+  ordre          Int
+  filiere        Filiere
+  objectif       String   @db.Text
+  duree_estimee  Int      // minutes
+  lessons        Lesson[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("lms_modules")
+}
+
+model Lesson {
+  id               String          @id @default(cuid())
+  module_id        String
+  module           Module          @relation(fields: [module_id], references: [id])
+  titre            String
+  objectif         String          @db.Text
+  duration_seconds Int
+  content_blocks   Json
+  media_prompt     String?         @db.Text
+  interaction_type InteractionType @default(lecture)
+  quiz_questions   QuizQuestion[]
+  flashcards       Flashcard[]
+  user_progress    UserProgress[]
+  media_assets     MediaAsset[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@map("lms_lessons")
+}
+
+model QuizQuestion {
+  id             String       @id @default(cuid())
+  lesson_id      String
+  lesson         Lesson       @relation(fields: [lesson_id], references: [id])
+  type           QuestionType @default(qcm)
+  question       String       @db.Text
+  choices        Json
+  correct_answer String
+  explanation    String       @db.Text
+  difficulty     Difficulty   @default(medium)
+  exam_tag       String?
+  ordre          Int          @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@map("lms_quiz_questions")
+}
+
+model Flashcard {
+  id             String   @id @default(cuid())
+  lesson_id      String
+  lesson         Lesson   @relation(fields: [lesson_id], references: [id])
+  front          String   @db.Text
+  back           String   @db.Text
+  next_review_at DateTime?
+  ease_factor    Float    @default(2.5)
+  ordre          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@map("lms_flashcards")
+}
+
+model UserProgress {
+  id             String         @id @default(cuid())
+  user_id        Int
+  lesson_id      String
+  lesson         Lesson         @relation(fields: [lesson_id], references: [id])
+  status         ProgressStatus @default(not_started)
+  score          Int?
+  attempts       Int            @default(0)
+  last_seen_at   DateTime?
+  next_review_at DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([user_id, lesson_id])
+  @@map("lms_user_progress")
+}
+
+model MediaAsset {
+  id        String      @id @default(cuid())
+  lesson_id String
+  lesson    Lesson      @relation(fields: [lesson_id], references: [id])
+  type      MediaType
+  prompt    String      @db.Text
+  alt_text  String?
+  status    MediaStatus @default(draft)
+  url       String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@map("lms_media_assets")
+}

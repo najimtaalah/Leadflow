@@ -28,6 +28,11 @@ import ParamSessions   from './pages/Parametrage/Sessions';
 import ParamAgences    from './pages/Parametrage/Agences';
 import ParamImports    from './pages/Parametrage/Imports';
 
+// LMS T3P
+import LmsLesson     from './pages/Lms/Lesson';
+import LmsQuiz       from './pages/Lms/Quiz';
+import LmsFlashcards from './pages/Lms/Flashcards';
+
 // ── Redirect racine selon le rôle ─────────────────────────────────────────────
 
 function HomeRedirect() {
@@ -96,6 +101,20 @@ export default function App() {
           {/* ── Profil (tous rôles) ── */}
           <Route path="profil" element={<Profil />} />
         </Route>
+
+        {/* ── LMS T3P — écrans plein écran (hors Layout CRM) ── */}
+        <Route
+          path="/lms/lessons/:id"
+          element={<PrivateRoute><LmsLesson /></PrivateRoute>}
+        />
+        <Route
+          path="/lms/quiz/:id"
+          element={<PrivateRoute><LmsQuiz /></PrivateRoute>}
+        />
+        <Route
+          path="/lms/flashcards"
+          element={<PrivateRoute><LmsFlashcards /></PrivateRoute>}
+        />
 
         {/* Fallback — redirect vers HomeRedirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
