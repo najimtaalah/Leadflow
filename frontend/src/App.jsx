@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import Layout from './components/layout/Layout';
 
@@ -46,8 +46,10 @@ function HomeRedirect() {
 // ── Route protégée (authentification requise) ─────────────────────────────────
 
 function PrivateRoute({ children }) {
-  const token = useAuthStore((s) => s.token);
-  return token ? children : <Navigate to="/login" replace />;
+  const token    = useAuthStore((s) => s.token);
+  const location = useLocation();
+  if (token) return children;
+  return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────

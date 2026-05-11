@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 import useAuthStore from '../store/authStore';
 
@@ -9,7 +9,8 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -18,7 +19,8 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       login(data.token, data.user);
-      navigate('/dashboard');
+      const returnTo = location.state?.from || '/dashboard';
+      navigate(returnTo, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Identifiants incorrects');
     } finally {
