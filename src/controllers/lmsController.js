@@ -143,6 +143,54 @@ async function reviewFlashcard(req, res) {
   }
 }
 
+// ── Modules ───────────────────────────────────────────────────────────────────
+
+async function getModules(req, res) {
+  try {
+    const modules = await prisma.module.findMany({
+      orderBy: { ordre: 'asc' },
+      include: {
+        lessons: {
+          orderBy: { titre: 'asc' },
+          select: {
+            id: true, titre: true, objectif: true, duration_seconds: true, interaction_type: true,
+            _count: { select: { quiz_questions: true, flashcards: true } },
+            user_progress: { where: { user_id: req.user.id }, select: { status: true, score: true } },
+          },
+        },
+      },
+    });
+    res.json({ success: true, data: modules });
+  } catch (err) {
+    logger.error('LMS getModules', { error: err.message });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+}
+
+async function getModule(req, res) {
+  const { id } = req.params;
+  try {
+    const module = await prisma.module.findUnique({
+      where: { id },
+      include: {
+        lessons: {
+          orderBy: { titre: 'asc' },
+          select: {
+            id: true, titre: true, objectif: true, duration_seconds: true, interaction_type: true,
+            _count: { select: { quiz_questions: true, flashcards: true } },
+            user_progress: { where: { user_id: req.user.id }, select: { status: true, score: true } },
+          },
+        },
+      },
+    });
+    if (!module) return res.status(404).json({ success: false, message: 'Module introuvable.' });
+    res.json({ success: true, data: module });
+  } catch (err) {
+    logger.error('LMS getModule', { error: err.message, id });
+    res.status(500).json({ success: false, message: 'Erreur serveur.' });
+  }
+}
+
 // ── Progression apprenant ─────────────────────────────────────────────────────
 
 async function getMyProgress(req, res) {
@@ -158,4 +206,4 @@ async function getMyProgress(req, res) {
   }
 }
 
-module.exports = { getLesson, getQuiz, submitQuiz, getFlashcards, reviewFlashcard, getMyProgress };
+module.exports = { getModules, getModule, getLesson, getQuiz, submitQuiz, getFlashcards, reviewFlashcard, getMyProgress };

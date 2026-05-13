@@ -3,6 +3,8 @@
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
 const {
+  getModules,
+  getModule,
   getLesson,
   getQuiz,
   submitQuiz,
@@ -15,6 +17,10 @@ const router = express.Router();
 
 // Toutes les routes LMS requièrent un JWT valide
 router.use(authenticate);
+
+// ── Modules ───────────────────────────────────────────────────────────────────
+router.get('/modules',     getModules);
+router.get('/modules/:id', getModule);
 
 // ── Leçons ────────────────────────────────────────────────────────────────────
 router.get('/lessons/:id', getLesson);

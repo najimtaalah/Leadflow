@@ -170,10 +170,13 @@ export default function Sidebar() {
             <NavDirect to="/agent"       icon="🤖">Agent IA</NavDirect>
             <NavDirect to="/qualiopi"    icon="🏅">Qualiopi</NavDirect>
 
-            <span className="nav-section">LMS T3P — Pilote</span>
-            <NavDirect to="/lms/lessons/m01-ch1-trois-metiers" icon="📖">Leçon M01/Ch1</NavDirect>
-            <NavDirect to="/lms/quiz/m01-ch1-trois-metiers"    icon="❓">Quiz QCM</NavDirect>
-            <NavDirect to="/lms/flashcards?lesson_id=m01-ch1-trois-metiers" icon="🎴">Flashcards</NavDirect>
+            <span className="nav-section">LMS T3P</span>
+            <NavDirect to="/lms/modules" icon="📚">Parcours T3P</NavDirect>
+            <NavDirect to="/lms/modules/m01-t3p-intro" icon="📘">M01 — Réglementation</NavDirect>
+            <NavDirect to="/lms/modules/m03-gestion"   icon="📗">M03 — Gestion</NavDirect>
+            <NavDirect to="/lms/modules/m05-securite"  icon="📙">M05 — Sécurité routière</NavDirect>
+            <NavDirect to="/lms/modules/m07a-francais" icon="📕">M07a — Français</NavDirect>
+            <NavDirect to="/lms/modules/m07b-anglais"  icon="🌐">M07b — Anglais</NavDirect>
 
             <span className="nav-section">Configuration</span>
             <NavGroup icon="⚙️" label="Paramétrage" matchPrefix="/parametrage">

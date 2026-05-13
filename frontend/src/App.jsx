@@ -29,9 +29,11 @@ import ParamAgences    from './pages/Parametrage/Agences';
 import ParamImports    from './pages/Parametrage/Imports';
 
 // LMS T3P
-import LmsLesson     from './pages/Lms/Lesson';
-import LmsQuiz       from './pages/Lms/Quiz';
-import LmsFlashcards from './pages/Lms/Flashcards';
+import LmsModules      from './pages/Lms/Modules';
+import LmsModuleDetail from './pages/Lms/ModuleDetail';
+import LmsLesson       from './pages/Lms/Lesson';
+import LmsQuiz         from './pages/Lms/Quiz';
+import LmsFlashcards   from './pages/Lms/Flashcards';
 
 // ── Redirect racine selon le rôle ─────────────────────────────────────────────
 
@@ -105,6 +107,14 @@ export default function App() {
         </Route>
 
         {/* ── LMS T3P — écrans plein écran (hors Layout CRM) ── */}
+        <Route
+          path="/lms/modules"
+          element={<PrivateRoute><LmsModules /></PrivateRoute>}
+        />
+        <Route
+          path="/lms/modules/:id"
+          element={<PrivateRoute><LmsModuleDetail /></PrivateRoute>}
+        />
         <Route
           path="/lms/lessons/:id"
           element={<PrivateRoute><LmsLesson /></PrivateRoute>}
