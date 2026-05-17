@@ -214,3 +214,56 @@ export const RESULTAT_EXAMEN_VARIANT: Record<string, string> = {
   echoue: 'red',
   absent: 'gray',
 };
+
+// Lot 5
+export const SESSION_STATUT_LABELS_EXAMEN: Record<string, string> = {
+  planifie: 'Planifié',
+  convocations_envoyees: 'Convocations envoyées',
+  resultats_saisis: 'Résultats saisis',
+  annule: 'Annulé',
+};
+
+export const SESSION_STATUT_VARIANT_EXAMEN: Record<string, string> = {
+  planifie: 'blue',
+  convocations_envoyees: 'orange',
+  resultats_saisis: 'green',
+  annule: 'red',
+};
+
+export const TENTATIVE_STATUT_LABELS: Record<string, string> = {
+  en_cours: 'En cours',
+  reussie: 'Réussie',
+  echouee: 'Échouée',
+};
+
+export const TENTATIVE_STATUT_VARIANT: Record<string, string> = {
+  en_cours: 'blue',
+  reussie: 'green',
+  echouee: 'red',
+};
+
+export const SAISIE_RESULTAT_LABELS: Record<string, string> = {
+  admis: 'Admis',
+  refuse: 'Refusé',
+};
+
+export const SAISIE_RESULTAT_VARIANT: Record<string, string> = {
+  admis: 'green',
+  refuse: 'red',
+};
+
+export const STATUT_RESULTAT_LABELS: Record<string, string> = {
+  planifie: 'Planifié',
+  passe: 'Passé',
+  resultat_en_attente: 'Résultat en attente',
+  reussi: 'Réussi',
+  echoue: 'Échoué',
+};
+
+export const STATUT_RESULTAT_VARIANT: Record<string, string> = {
+  planifie: 'blue',
+  passe: 'orange',
+  resultat_en_attente: 'orange',
+  reussi: 'green',
+  echoue: 'red',
+};

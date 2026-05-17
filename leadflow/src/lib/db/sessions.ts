@@ -359,11 +359,20 @@ export async function affecterSession(input: AffecterSessionInput): Promise<void
       select: { statut: true, type_financement: true },
     });
 
-    // RM-L4-05: examen pratique uniquement après théorie réussie
+    // RM-L5-03: examen pratique uniquement après theorique admis sur CETTE tentative
     if (session_type === 'pratique') {
-      const affectation = await tx.affectation.findUnique({ where: { dossier_id } });
-      if (!affectation?.resultat_theorique || affectation.resultat_theorique !== 'reussi') {
-        throw new Error("L'apprenant doit avoir réussi l'examen théorique avant d'être affecté à un examen pratique.");
+      const currentTentative = await tx.tentative.findFirst({
+        where: { dossier_id, statut: 'en_cours' },
+        include: { resultats: { where: { session_type: 'theorique' } } },
+        orderBy: { numero: 'desc' },
+      });
+      const theoriqueAdmis = currentTentative?.resultats.some((r) => r.resultat === 'admis');
+      if (!theoriqueAdmis) {
+        // Fallback to legacy affectation check for Lot 4 compat
+        const affectation = await tx.affectation.findUnique({ where: { dossier_id } });
+        if (!affectation?.resultat_theorique || affectation.resultat_theorique !== 'reussi') {
+          throw new Error("L'apprenant doit avoir réussi l'examen théorique de la tentative courante avant d'être affecté à un examen pratique.");
+        }
       }
     }
 
@@ -408,6 +417,48 @@ export async function affecterSession(input: AffecterSessionInput): Promise<void
         where: { id: dossier_id },
         data: { statut: 'planifie' },
       });
+    }
+
+    // RM-L5-01: auto-create Tentative #1 on first theorique affectation
+    if (session_type === 'theorique') {
+      const existingTentative = await tx.tentative.findFirst({ where: { dossier_id } });
+      if (!existingTentative) {
+        await tx.tentative.create({
+          data: {
+            id: crypto.randomUUID(),
+            dossier_id,
+            numero: 1,
+            statut: 'en_cours',
+            session_examen_theorique_id: session_id,
+          },
+        });
+      } else {
+        // Update current tentative's session reference
+        const currentTentative = await tx.tentative.findFirst({
+          where: { dossier_id, statut: 'en_cours' },
+          orderBy: { numero: 'desc' },
+        });
+        if (currentTentative) {
+          await tx.tentative.update({
+            where: { id: currentTentative.id },
+            data: { session_examen_theorique_id: session_id },
+          });
+        }
+      }
+    }
+
+    // RM-L5-03 (enhanced): update current tentative's pratique session ref
+    if (session_type === 'pratique') {
+      const currentTentative = await tx.tentative.findFirst({
+        where: { dossier_id, statut: 'en_cours' },
+        orderBy: { numero: 'desc' },
+      });
+      if (currentTentative) {
+        await tx.tentative.update({
+          where: { id: currentTentative.id },
+          data: { session_examen_pratique_id: session_id },
+        });
+      }
     }
 
     // RM-L4-06: audit log pour traçabilité Qualiopi 5 & 7

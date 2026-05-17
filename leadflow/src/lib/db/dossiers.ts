@@ -470,12 +470,20 @@ export async function computeQualiopiCriteres(dossierId: string): Promise<Qualio
   const dossier = await prisma.dossier.findUnique({ where: { id: dossierId } });
   if (!dossier) return [];
 
-  const [pieces, affectation] = await Promise.all([
+  const [pieces, affectation, tentatives, attestationRequests] = await Promise.all([
     prisma.pieceJustificative.findMany({
       where: { dossier_id: dossierId },
       select: { type_piece: true, statut: true },
     }),
     prisma.affectation.findUnique({ where: { dossier_id: dossierId } }),
+    prisma.tentative.findMany({
+      where: { dossier_id: dossierId },
+      include: { resultats: true },
+      orderBy: { numero: 'desc' },
+    }),
+    prisma.attestationRequest.findMany({
+      where: { dossier_id: dossierId, statut: { not: 'annulee' } },
+    }),
   ]);
 
   const hasPiece = (type: string, s?: string) =>
@@ -489,9 +497,18 @@ export async function computeQualiopiCriteres(dossierId: string): Promise<Qualio
   const sessionTheoriqueOk = !!affectation?.session_examen_theorique_id;
   const sessionPratiqueOk = !!affectation?.session_examen_pratique_id;
 
-  // Critère 7 — Résultats examens
-  const resultatTheoriqueOk = affectation?.resultat_theorique === 'reussi';
-  const resultatPratiqueOk = affectation?.resultat_pratique === 'reussi';
+  // Lot 5: résultats détaillés depuis resultats_examens
+  const currentTentative = tentatives.find((t) => t.statut === 'en_cours') ?? tentatives[0];
+  const rTheo = currentTentative?.resultats.find((r) => r.session_type === 'theorique');
+  const rPrat = currentTentative?.resultats.find((r) => r.session_type === 'pratique');
+  const resultatTheoriqueAdmis = rTheo?.resultat === 'admis';
+  const resultatPratiqueAdmis = rPrat?.resultat === 'admis';
+
+  // Critère 7 — Résultats examens (backward compat)
+  const resultatTheoriqueOk = affectation?.resultat_theorique === 'reussi' || resultatTheoriqueAdmis;
+  const resultatPratiqueOk = affectation?.resultat_pratique === 'reussi' || resultatPratiqueAdmis;
+
+  const attestationCreee = attestationRequests.length > 0;
 
   return [
     { id: 'I1', label: 'Information du public — Formation cataloguée', statut: 'ok', source: 'formations.catalogue' },
@@ -499,13 +516,13 @@ export async function computeQualiopiCriteres(dossierId: string): Promise<Qualio
     { id: 'I2b', label: 'Positionnement — Évaluation de positionnement', statut: hasPiece('evaluation_positionnement', 'fournie') ? 'ok' : 'error', source: 'documents' },
     { id: 'I3', label: 'Adaptation — Programme de formation', statut: hasPiece('programme_formation', 'fournie') ? 'ok' : 'error', source: 'documents' },
     { id: 'I4a', label: 'Suivi — Session de cours affectée (C5)', statut: sessionCoursOk ? 'ok' : 'error', source: 'affectations.session_cours_id' },
-    { id: 'I4b', label: "Suivi — Feuille d'émargement", statut: 'error', source: 'documents (Lot 4+)' },
+    { id: 'I4b', label: "Suivi — Feuille d'émargement", statut: 'error', source: 'documents (Lot 6)' },
     { id: 'I5a', label: 'Évaluation — Examen théorique affecté (C5)', statut: sessionTheoriqueOk ? 'ok' : 'error', source: 'affectations.session_examen_theorique_id' },
-    { id: 'I5b', label: 'Évaluation — Résultat théorique (C7)', statut: affectation?.resultat_theorique ? (resultatTheoriqueOk ? 'ok' : 'warning') : 'error', source: 'affectations.resultat_theorique' },
+    { id: 'I5b', label: 'Évaluation — Résultat théorique (C5)', statut: rTheo ? (resultatTheoriqueAdmis ? 'ok' : 'warning') : sessionTheoriqueOk ? 'warning' : 'error', source: 'resultats_examens.theorique' },
     { id: 'I5c', label: 'Évaluation — Examen pratique affecté (C5)', statut: sessionPratiqueOk ? 'ok' : sessionTheoriqueOk ? 'warning' : 'na', source: 'affectations.session_examen_pratique_id' },
-    { id: 'I5d', label: 'Évaluation — Résultat pratique (C7)', statut: affectation?.resultat_pratique ? (resultatPratiqueOk ? 'ok' : 'warning') : sessionPratiqueOk ? 'error' : 'na', source: 'affectations.resultat_pratique' },
-    { id: 'I6a', label: 'Résultats — Attestation de réalisation', statut: 'error', source: 'documents (Lot 4+)' },
-    { id: 'I6b', label: 'Résultats — Certificat de réussite', statut: resultatPratiqueOk ? 'warning' : 'na', source: 'documents (Lot 4+)' },
+    { id: 'I5d', label: 'Évaluation — Résultat pratique (C5)', statut: rPrat ? (resultatPratiqueAdmis ? 'ok' : 'warning') : sessionPratiqueOk ? 'error' : 'na', source: 'resultats_examens.pratique' },
+    { id: 'I6a', label: 'Résultats — Demande attestation créée (C6)', statut: attestationCreee ? 'ok' : resultatPratiqueAdmis ? 'warning' : 'na', source: 'attestation_requests' },
+    { id: 'I6b', label: 'Résultats — Attestation/Certificat généré (C6)', statut: 'error', source: 'documents (Lot 6)' },
     { id: 'I7', label: 'Réclamations — Aucune réclamation ouverte non traitée', statut: 'ok', source: 'audit_log' },
   ];
 }

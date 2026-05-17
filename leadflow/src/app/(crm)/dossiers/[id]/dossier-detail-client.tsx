@@ -6,7 +6,7 @@ import Link from "next/link";
 import { CheckCircle, AlertTriangle, XCircle, Minus, Upload, X, Play, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { DossierWithRelations, PieceJustificative, AuditLog, User } from "@/lib/db/types";
+import type { DossierWithRelations, PieceJustificative, AuditLog, User, TentativeWithResultats } from "@/lib/db/types";
 import type { QualiopiCritere } from "@/lib/db/dossiers";
 import {
   formatDate, formatDateTime, formatEuro,
@@ -15,9 +15,12 @@ import {
   FINANCEMENT_LABELS, FINANCEMENT_VARIANT,
   FORMATION_TYPE_LABELS, FORMULE_LABELS,
   PIECE_STATUT_LABELS, PIECE_STATUT_VARIANT, PIECE_TYPE_LABELS,
-  RELANCE_TYPE_LABELS
+  RELANCE_TYPE_LABELS,
+  TENTATIVE_STATUT_LABELS, TENTATIVE_STATUT_VARIANT,
+  SAISIE_RESULTAT_LABELS, SAISIE_RESULTAT_VARIANT,
+  STATUT_RESULTAT_LABELS, STATUT_RESULTAT_VARIANT,
 } from "@/lib/format";
-import { actionUpdateBlocStatut, actionActiverApprenant } from "./actions";
+import { actionUpdateBlocStatut, actionActiverApprenant, actionCreerNouvelleTentative } from "./actions";
 
 type TabId = 'infos' | 'admin' | 'financier' | 'sessions' | 'examens' | 'documents' | 'facturation' | 'historique' | 'qualiopi';
 
@@ -46,12 +49,13 @@ interface Props {
   pieces: PieceJustificative[];
   auditLog: AuditLog[];
   qualiopi: QualiopiCritere[];
+  tentatives: TentativeWithResultats[];
   currentUser: User;
   allUsers: User[];
   permissions: Permissions;
 }
 
-export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, currentUser, allUsers, permissions }: Props) {
+export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, tentatives, currentUser, allUsers, permissions }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<TabId>('infos');
   const [loading, setLoading] = React.useState(false);
@@ -157,7 +161,13 @@ export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, curre
           />
         )}
         {activeTab === 'sessions' && <TabLotFutur label="Sessions" lot={3} />}
-        {activeTab === 'examens' && <TabLotFutur label="Examens" lot={5} />}
+        {activeTab === 'examens' && (
+          <TabExamens
+            tentatives={tentatives}
+            dossierId={dossier.id}
+            canCreate={['gestionnaire', 'admin', 'super_admin'].includes(currentUser.role)}
+          />
+        )}
         {activeTab === 'documents' && <TabLotFutur label="Documents" lot={4} />}
         {activeTab === 'facturation' && <TabLotFutur label="Facturation" lot={6} />}
         {activeTab === 'historique' && <TabHistorique auditLog={auditLog} />}
@@ -554,6 +564,170 @@ function TabQualiopi({ criteres, pct, covered, applicable, canExport }: {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function TabExamens({ tentatives, dossierId, canCreate }: {
+  tentatives: TentativeWithResultats[];
+  dossierId: string;
+  canCreate: boolean;
+}) {
+  const [creating, setCreating] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const router = useRouter();
+
+  const currentTentative = tentatives.find((t) => t.statut === 'en_cours') ?? tentatives[0] ?? null;
+  const canCreateNew = canCreate && currentTentative?.statut === 'echouee';
+
+  async function handleNouvelleTentative() {
+    setCreating(true);
+    setError('');
+    try {
+      await actionCreerNouvelleTentative(dossierId);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (tentatives.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="text-center">
+          <p className="text-[13px] font-medium text-foreground-muted">Aucune tentative</p>
+          <p className="text-[12px] text-foreground-subtle mt-1">Une tentative est créée automatiquement lors de la première affectation à un examen théorique.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col gap-4">
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] text-foreground-muted">{tentatives.length} tentative(s)</span>
+          {currentTentative && (
+            <Badge variant={TENTATIVE_STATUT_VARIANT[currentTentative.statut] as Parameters<typeof Badge>[0]['variant']}>
+              {TENTATIVE_STATUT_LABELS[currentTentative.statut]}
+            </Badge>
+          )}
+        </div>
+        {canCreateNew && (
+          <Button size="xs" onClick={handleNouvelleTentative} disabled={creating}>
+            {creating ? 'Création...' : '+ Nouvelle tentative'}
+          </Button>
+        )}
+      </div>
+      {error && <p className="text-[12px] text-red-500">{error}</p>}
+
+      {/* Liste des tentatives */}
+      {tentatives.map((t) => (
+        <div key={t.id} className="rounded-[6px] border border-border bg-surface">
+          {/* Header tentative */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold">Tentative #{t.numero}</span>
+              <Badge variant={TENTATIVE_STATUT_VARIANT[t.statut] as Parameters<typeof Badge>[0]['variant']}>
+                {TENTATIVE_STATUT_LABELS[t.statut]}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3 text-[11px] text-foreground-muted">
+              <span>Ouverte le {formatDate(t.created_at)}</span>
+              {t.date_cloture && <span>Clôturée le {formatDate(t.date_cloture)}</span>}
+            </div>
+          </div>
+
+          {/* Résultats examen théorique */}
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-foreground-muted uppercase tracking-wide">Examen théorique</span>
+              {t.session_examen_theorique_id && (
+                <Link href={`/sessions/examens-theoriques/${t.session_examen_theorique_id}/resultats`} className="text-[11px] text-accent hover:underline">
+                  Voir la session →
+                </Link>
+              )}
+            </div>
+            {t.resultat_theorique ? (
+              <div className="grid grid-cols-3 gap-3 text-[12px]">
+                <div>
+                  <p className="text-[10px] text-foreground-muted mb-0.5">Résultat</p>
+                  <Badge variant={t.resultat_theorique.resultat ? SAISIE_RESULTAT_VARIANT[t.resultat_theorique.resultat] as Parameters<typeof Badge>[0]['variant'] : 'gray'}>
+                    {t.resultat_theorique.resultat ? SAISIE_RESULTAT_LABELS[t.resultat_theorique.resultat] : STATUT_RESULTAT_LABELS[t.resultat_theorique.statut]}
+                  </Badge>
+                </div>
+                {t.resultat_theorique.score !== null && (
+                  <div>
+                    <p className="text-[10px] text-foreground-muted mb-0.5">Score</p>
+                    <p>{t.resultat_theorique.score}</p>
+                  </div>
+                )}
+                {t.resultat_theorique.mention && (
+                  <div>
+                    <p className="text-[10px] text-foreground-muted mb-0.5">Mention</p>
+                    <p>{t.resultat_theorique.mention}</p>
+                  </div>
+                )}
+                {t.session_theorique_date && (
+                  <div>
+                    <p className="text-[10px] text-foreground-muted mb-0.5">Date</p>
+                    <p>{formatDate(t.session_theorique_date)}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-[12px] text-foreground-subtle">
+                {t.session_examen_theorique_id ? 'Résultat non encore saisi' : 'Session non affectée'}
+              </p>
+            )}
+          </div>
+
+          {/* Résultats examen pratique */}
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-foreground-muted uppercase tracking-wide">Examen pratique</span>
+              {t.session_examen_pratique_id && (
+                <Link href={`/sessions/examens-pratiques/${t.session_examen_pratique_id}/resultats`} className="text-[11px] text-accent hover:underline">
+                  Voir la session →
+                </Link>
+              )}
+            </div>
+            {t.resultat_theorique?.resultat !== 'admis' && !t.resultat_pratique ? (
+              <p className="text-[12px] text-foreground-subtle text-orange-600 dark:text-orange-400">
+                Non accessible — théorique requis sur cette tentative
+              </p>
+            ) : t.resultat_pratique ? (
+              <div className="grid grid-cols-3 gap-3 text-[12px]">
+                <div>
+                  <p className="text-[10px] text-foreground-muted mb-0.5">Résultat</p>
+                  <Badge variant={t.resultat_pratique.resultat ? SAISIE_RESULTAT_VARIANT[t.resultat_pratique.resultat] as Parameters<typeof Badge>[0]['variant'] : 'gray'}>
+                    {t.resultat_pratique.resultat ? SAISIE_RESULTAT_LABELS[t.resultat_pratique.resultat] : STATUT_RESULTAT_LABELS[t.resultat_pratique.statut]}
+                  </Badge>
+                </div>
+                {t.resultat_pratique.score !== null && (
+                  <div>
+                    <p className="text-[10px] text-foreground-muted mb-0.5">Score</p>
+                    <p>{t.resultat_pratique.score}</p>
+                  </div>
+                )}
+                {t.resultat_pratique.mention && (
+                  <div>
+                    <p className="text-[10px] text-foreground-muted mb-0.5">Mention</p>
+                    <p>{t.resultat_pratique.mention}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-[12px] text-foreground-subtle">
+                {t.session_examen_pratique_id ? 'Résultat non encore saisi' : 'Session non affectée'}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -14,7 +14,13 @@ import {
   type CreateSessionExamenTheoriqueInput,
   type CreateSessionExamenPratiqueInput,
 } from "@/lib/db/sessions";
-import type { ResultatExamen } from "@/lib/db/types";
+import {
+  saisirResultatExamen,
+  creerNouvelletentative,
+  transitionnerSessionConvocations,
+  type SaisirResultatInput,
+} from "@/lib/db/tentatives";
+import type { ResultatExamen, SessionTypeExamen, SaisieResultat } from "@/lib/db/types";
 
 export async function actionCreateSessionCours(input: CreateSessionCoursInput) {
   const user = await getCurrentUser();
@@ -94,4 +100,55 @@ export async function actionSetResultatExamen(
   }
   await setResultatExamen(dossierId, type, resultat, user.id);
   revalidatePath(`/dossiers/${dossierId}`);
+}
+
+// ─── Lot 5 — Saisie résultats & tentatives ────────────────────────────────────
+
+export async function actionSaisirResultatExamen(input: {
+  dossier_id: string;
+  tentative_id: string;
+  session_type: SessionTypeExamen;
+  session_id: string;
+  resultat: SaisieResultat;
+  score?: number;
+  mention?: string;
+  observations?: string;
+}) {
+  const user = await getCurrentUser();
+  // RM-L5-02: seuls Admin et Super Admin peuvent saisir
+  if (!['admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Seuls Admin et Super Admin peuvent saisir les résultats d\'examens.');
+  }
+  await saisirResultatExamen({ ...input, auteur_id: user.id });
+  revalidatePath(`/dossiers/${input.dossier_id}`);
+  if (input.session_type === 'theorique') {
+    revalidatePath(`/sessions/examens-theoriques/${input.session_id}`);
+  } else {
+    revalidatePath(`/sessions/examens-pratiques/${input.session_id}`);
+  }
+}
+
+export async function actionCreerNouvelleTentative(dossierId: string) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  const id = await creerNouvelletentative(dossierId, user.id);
+  revalidatePath(`/dossiers/${dossierId}`);
+  return id;
+}
+
+export async function actionTransitionnerSessionConvocations(
+  sessionType: 'theorique' | 'pratique',
+  sessionId: string,
+) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  await transitionnerSessionConvocations(sessionType, sessionId, user.id);
+  const path = sessionType === 'theorique'
+    ? `/sessions/examens-theoriques/${sessionId}`
+    : `/sessions/examens-pratiques/${sessionId}`;
+  revalidatePath(path);
 }

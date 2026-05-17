@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, canValidateBlocAdmin, canValidateBlocFinancier, canActivateApprenant } from "@/lib/auth";
 import { updateBlocStatut, activerApprenant } from "@/lib/db/dossiers";
+import { creerNouvelletentative } from "@/lib/db/tentatives";
 import type { BlocStatut } from "@/lib/db/types";
 
 export async function actionUpdateBlocStatut(
@@ -38,4 +39,13 @@ export async function actionActiverApprenant(dossierId: string) {
   revalidatePath('/dossiers');
   revalidatePath('/leads');
   revalidatePath('/apprenants');
+}
+
+export async function actionCreerNouvelleTentative(dossierId: string) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  await creerNouvelletentative(dossierId, user.id);
+  revalidatePath(`/dossiers/${dossierId}`);
 }

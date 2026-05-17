@@ -135,6 +135,42 @@ enum ResultatExamen {
   absent
 }
 
+enum TentativeStatut {
+  en_cours
+  reussie
+  echouee
+}
+
+enum SaisieResultat {
+  admis
+  refuse
+}
+
+enum StatutResultatExamen {
+  planifie
+  passe
+  resultat_en_attente
+  reussi
+  echoue
+}
+
+enum SessionTypeExamen {
+  theorique
+  pratique
+}
+
+enum StatutConvocationRequest {
+  en_attente
+  traitee
+  annulee
+}
+
+enum StatutAttestationRequest {
+  en_attente
+  traitee
+  annulee
+}
+
 model User {
   id         String   @id
   prenom     String
@@ -150,6 +186,7 @@ model User {
   dossiers_commercial   Dossier[]          @relation("DossierCommercial")
   dossiers_gestionnaire Dossier[]          @relation("DossierGestionnaire")
   audit_logs            AuditLog[]
+  resultats_saisis      ResultatExamenDetail[]
 
   @@map("users")
 }
@@ -286,6 +323,10 @@ model Dossier {
   pieces_justificatives PieceJustificative[]
   audit_logs            AuditLog[]
   affectation           Affectation?
+  tentatives            Tentative[]
+  resultats_examens     ResultatExamenDetail[]
+  convocation_requests  ConvocationRequest[]
+  attestation_requests  AttestationRequest[]
 
   @@index([id_apprenant])
   @@index([id_lead_origine])
@@ -351,17 +392,20 @@ model SessionEdof {
 }
 
 model SessionExamenTheorique {
-  id           String        @id
-  date_examen  DateTime
-  lieu         String?
-  organisme    String?
-  capacite_max Int           @default(30)
-  statut       SessionStatut @default(planifie)
-  notes        String?
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
+  id                String        @id
+  date_examen       DateTime
+  lieu              String?
+  organisme         String?
+  jury_examinateur  String?
+  jury_contact      String?
+  capacite_max      Int           @default(30)
+  statut            SessionStatut @default(planifie)
+  notes             String?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
 
   affectations Affectation[]
+  tentatives   Tentative[]
 
   @@index([date_examen])
   @@index([statut])
@@ -369,17 +413,20 @@ model SessionExamenTheorique {
 }
 
 model SessionExamenPratique {
-  id           String        @id
-  date_examen  DateTime
-  lieu         String?
-  organisme    String?
-  capacite_max Int           @default(10)
-  statut       SessionStatut @default(planifie)
-  notes        String?
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
+  id                String        @id
+  date_examen       DateTime
+  lieu              String?
+  organisme         String?
+  jury_examinateur  String?
+  jury_contact      String?
+  capacite_max      Int           @default(10)
+  statut            SessionStatut @default(planifie)
+  notes             String?
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
 
   affectations Affectation[]
+  tentatives   Tentative[]
 
   @@index([date_examen])
   @@index([statut])
@@ -425,4 +472,80 @@ model AuditLog {
   @@index([dossier_id])
   @@index([lead_id])
   @@map("audit_logs")
+}
+
+// ─── Lot 5 — Examens & Tentatives ─────────────────────────────────────────────
+
+model Tentative {
+  id                          String          @id
+  dossier_id                  String
+  dossier                     Dossier         @relation(fields: [dossier_id], references: [id])
+  numero                      Int
+  statut                      TentativeStatut @default(en_cours)
+  session_examen_theorique_id String?
+  session_examen_theorique    SessionExamenTheorique? @relation(fields: [session_examen_theorique_id], references: [id])
+  session_examen_pratique_id  String?
+  session_examen_pratique     SessionExamenPratique?  @relation(fields: [session_examen_pratique_id], references: [id])
+  date_cloture                DateTime?
+  created_at                  DateTime        @default(now())
+  updated_at                  DateTime        @updatedAt
+
+  resultats ResultatExamenDetail[]
+
+  @@unique([dossier_id, numero])
+  @@index([dossier_id])
+  @@map("tentatives")
+}
+
+model ResultatExamenDetail {
+  id             String               @id
+  dossier_id     String
+  dossier        Dossier              @relation(fields: [dossier_id], references: [id])
+  tentative_id   String
+  tentative      Tentative            @relation(fields: [tentative_id], references: [id])
+  session_type   SessionTypeExamen
+  session_id     String
+  statut         StatutResultatExamen @default(planifie)
+  resultat       SaisieResultat?
+  score          Decimal?             @db.Decimal(5, 2)
+  mention        String?              @db.VarChar(50)
+  observations   String?
+  saisi_par_id   String?
+  saisi_par      User?                @relation(fields: [saisi_par_id], references: [id])
+  saisi_le       DateTime?
+  created_at     DateTime             @default(now())
+  updated_at     DateTime             @updatedAt
+
+  @@unique([tentative_id, session_type])
+  @@index([dossier_id])
+  @@index([tentative_id])
+  @@map("resultats_examens")
+}
+
+model ConvocationRequest {
+  id           String                   @id
+  dossier_id   String
+  dossier      Dossier                  @relation(fields: [dossier_id], references: [id])
+  tentative_id String?
+  session_type SessionTypeExamen
+  session_id   String
+  statut       StatutConvocationRequest @default(en_attente)
+  created_at   DateTime                 @default(now())
+  updated_at   DateTime                 @updatedAt
+
+  @@index([dossier_id])
+  @@map("convocation_requests")
+}
+
+model AttestationRequest {
+  id           String                   @id
+  dossier_id   String
+  dossier      Dossier                  @relation(fields: [dossier_id], references: [id])
+  tentative_id String?
+  statut       StatutAttestationRequest @default(en_attente)
+  created_at   DateTime                 @default(now())
+  updated_at   DateTime                 @updatedAt
+
+  @@index([dossier_id])
+  @@map("attestation_requests")
 }

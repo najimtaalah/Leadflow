@@ -16,6 +16,12 @@ export type SessionStatut = 'planifie' | 'en_cours' | 'termine' | 'annule';
 export type TypePresence = 'presentiel' | 'distanciel' | 'hybride';
 export type SessionEdofStatut = 'active' | 'cloturee';
 export type ResultatExamen = 'reussi' | 'echoue' | 'absent';
+export type TentativeStatut = 'en_cours' | 'reussie' | 'echouee';
+export type SaisieResultat = 'admis' | 'refuse';
+export type StatutResultatExamen = 'planifie' | 'passe' | 'resultat_en_attente' | 'reussi' | 'echoue';
+export type SessionTypeExamen = 'theorique' | 'pratique';
+export type StatutConvocationRequest = 'en_attente' | 'traitee' | 'annulee';
+export type StatutAttestationRequest = 'en_attente' | 'traitee' | 'annulee';
 export type AuditActionType =
   | 'creation_dossier'
   | 'modification_champ'
@@ -294,4 +300,56 @@ export interface PerformanceCommercial {
   commissions_figees: number;
   commissions_en_cours: number;
   relances_en_retard: number;
+}
+
+// ─── Lot 5 — Examens & Tentatives ─────────────────────────────────────────────
+
+export interface Tentative {
+  id: string;
+  dossier_id: string;
+  numero: number;
+  statut: TentativeStatut;
+  session_examen_theorique_id: string | null;
+  session_examen_pratique_id: string | null;
+  date_cloture: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TentativeWithResultats extends Tentative {
+  resultat_theorique: ResultatExamenDetailRow | null;
+  resultat_pratique: ResultatExamenDetailRow | null;
+  session_theorique_date: string | null;
+  session_theorique_lieu: string | null;
+  session_pratique_date: string | null;
+  session_pratique_lieu: string | null;
+}
+
+export interface ResultatExamenDetailRow {
+  id: string;
+  dossier_id: string;
+  tentative_id: string;
+  session_type: SessionTypeExamen;
+  session_id: string;
+  statut: StatutResultatExamen;
+  resultat: SaisieResultat | null;
+  score: number | null;
+  mention: string | null;
+  observations: string | null;
+  saisi_par_id: string | null;
+  saisi_par_prenom: string | null;
+  saisi_par_nom: string | null;
+  saisi_le: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AffectationWithApprenantAndTentative extends AffectationWithApprenant {
+  tentative_id: string | null;
+  tentative_numero: number | null;
+  tentative_statut: TentativeStatut | null;
+  resultat_detail_statut: StatutResultatExamen | null;
+  resultat_detail_resultat: SaisieResultat | null;
+  resultat_detail_score: number | null;
+  resultat_detail_mention: string | null;
 }

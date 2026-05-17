@@ -50,7 +50,16 @@ export default async function SessionExamenTheoriqueApprenantsPage({ params }: P
             <span className="flex items-center gap-1"><Users className="h-3 w-3" />{affectations.length}/{session.capacite_max}</span>
           </span>
         }
-        actions={canEdit && placesRestantes > 0 ? <AffecterDialog sessionType="theorique" sessionId={id} /> : undefined}
+        actions={
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <a href={`/sessions/examens-theoriques/${id}/resultats`} className="inline-flex items-center gap-1 text-[12px] px-3 py-1.5 rounded-[5px] border border-border bg-surface hover:bg-surface-hover transition-colors">
+                Saisir les résultats
+              </a>
+            )}
+            {canEdit && placesRestantes > 0 && <AffecterDialog sessionType="theorique" sessionId={id} />}
+          </div>
+        }
       />
       <PageContent>
         <div className="overflow-x-auto">

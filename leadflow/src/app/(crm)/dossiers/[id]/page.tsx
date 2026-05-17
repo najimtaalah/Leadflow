@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDossierById, getPiecesJustificatives, getAuditLog, computeQualiopiCriteres } from "@/lib/db/dossiers";
+import { getTentativesByDossier } from "@/lib/db/tentatives";
 import { getCurrentUser, getAllUsers, canValidateBlocAdmin, canValidateBlocFinancier, canSaisieBlocFinancier, canActivateApprenant, canViewAllLeads } from "@/lib/auth";
 import { PageHeader, PageContent } from "@/components/ds/app-layout";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +19,12 @@ export default async function DossierPage({ params }: Props) {
   const dossier = await getDossierById(id);
   if (!dossier) notFound();
 
-  const [pieces, auditLog, qualiopi, allUsers] = await Promise.all([
+  const [pieces, auditLog, qualiopi, allUsers, tentatives] = await Promise.all([
     getPiecesJustificatives(id),
     getAuditLog(id),
     computeQualiopiCriteres(id),
     getAllUsers(),
+    getTentativesByDossier(id),
   ]);
 
   const permissions = {
@@ -54,6 +56,7 @@ export default async function DossierPage({ params }: Props) {
           pieces={pieces}
           auditLog={auditLog}
           qualiopi={qualiopi}
+          tentatives={tentatives}
           currentUser={user}
           allUsers={allUsers}
           permissions={permissions}
