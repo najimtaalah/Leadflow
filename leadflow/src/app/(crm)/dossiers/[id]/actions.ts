@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser, canValidateBlocAdmin, canValidateBlocFinancier, canActivateApprenant } from "@/lib/auth";
 import { updateBlocStatut, activerApprenant } from "@/lib/db/dossiers";
 import { creerNouvelletentative } from "@/lib/db/tentatives";
-import type { BlocStatut } from "@/lib/db/types";
+import { genererDocument, signerDocument } from "@/lib/db/documents";
+import { prisma } from "@/lib/db/prisma";
+import type { BlocStatut, TypeDocument } from "@/lib/db/types";
 
 export async function actionUpdateBlocStatut(
   dossierId: string,
@@ -47,5 +49,54 @@ export async function actionCreerNouvelleTentative(dossierId: string) {
     throw new Error('Non autorisé');
   }
   await creerNouvelletentative(dossierId, user.id);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+// ─── Lot 6 — Documents ────────────────────────────────────────────────────────
+
+export async function actionGenererDocument(dossierId: string, typeDocument: TypeDocument) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  await genererDocument(dossierId, typeDocument, user.id);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+export async function actionSignerDocument(dossierId: string, typeDocument: TypeDocument) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  await signerDocument(dossierId, typeDocument, user.id);
+  revalidatePath(`/dossiers/${dossierId}`);
+}
+
+export async function actionUpdateDossierConformite(
+  dossierId: string,
+  objectif_formation: string,
+  evaluation_pre_formation: string,
+) {
+  const user = await getCurrentUser();
+  if (!['gestionnaire', 'admin', 'super_admin'].includes(user.role)) {
+    throw new Error('Non autorisé');
+  }
+  await prisma.dossier.update({
+    where: { id: dossierId },
+    data: {
+      objectif_formation: objectif_formation || null,
+      evaluation_pre_formation: evaluation_pre_formation || null,
+      evaluation_pre_formation_at: evaluation_pre_formation ? new Date() : undefined,
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      id: crypto.randomUUID(),
+      dossier_id: dossierId,
+      type_action: 'modification_champ',
+      detail: 'Objectif de formation et évaluation pré-formation mis à jour',
+      auteur_id: user.id,
+    },
+  });
   revalidatePath(`/dossiers/${dossierId}`);
 }

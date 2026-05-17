@@ -6,8 +6,9 @@ import Link from "next/link";
 import { CheckCircle, AlertTriangle, XCircle, Minus, Upload, X, Play, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { DossierWithRelations, PieceJustificative, AuditLog, User, TentativeWithResultats } from "@/lib/db/types";
+import type { DossierWithRelations, PieceJustificative, AuditLog, User, TentativeWithResultats, QualiopiConformite, QualiopiCritereStatut, QualiopiCouleur } from "@/lib/db/types";
 import type { QualiopiCritere } from "@/lib/db/dossiers";
+import type { DocumentStatus } from "@/lib/db/documents";
 import {
   formatDate, formatDateTime, formatEuro,
   DOSSIER_STATUT_LABELS, DOSSIER_STATUT_VARIANT,
@@ -19,10 +20,12 @@ import {
   TENTATIVE_STATUT_LABELS, TENTATIVE_STATUT_VARIANT,
   SAISIE_RESULTAT_LABELS, SAISIE_RESULTAT_VARIANT,
   STATUT_RESULTAT_LABELS, STATUT_RESULTAT_VARIANT,
+  TYPE_DOCUMENT_LABELS, STATUT_DOCUMENT_LABELS, STATUT_DOCUMENT_VARIANT,
+  QUALIOPI_CRITERE_LABELS, QUALIOPI_COULEUR_LABELS,
 } from "@/lib/format";
-import { actionUpdateBlocStatut, actionActiverApprenant, actionCreerNouvelleTentative } from "./actions";
+import { actionUpdateBlocStatut, actionActiverApprenant, actionCreerNouvelleTentative, actionGenererDocument, actionSignerDocument, actionUpdateDossierConformite } from "./actions";
 
-type TabId = 'infos' | 'admin' | 'financier' | 'sessions' | 'examens' | 'documents' | 'facturation' | 'historique' | 'qualiopi';
+type TabId = 'infos' | 'admin' | 'financier' | 'sessions' | 'examens' | 'documents' | 'conformite' | 'historique' | 'qualiopi';
 
 const TABS: { id: TabId; label: string; lot?: number }[] = [
   { id: 'infos', label: 'Informations' },
@@ -30,10 +33,10 @@ const TABS: { id: TabId; label: string; lot?: number }[] = [
   { id: 'financier', label: 'Bloc Financier' },
   { id: 'sessions', label: 'Sessions', lot: 3 },
   { id: 'examens', label: 'Examens', lot: 5 },
-  { id: 'documents', label: 'Documents', lot: 4 },
-  { id: 'facturation', label: 'Facturation', lot: 6 },
+  { id: 'documents', label: 'Documents', lot: 6 },
+  { id: 'conformite', label: 'Conformité', lot: 6 },
   { id: 'historique', label: 'Historique' },
-  { id: 'qualiopi', label: 'Conformité Qualiopi' },
+  { id: 'qualiopi', label: 'Qualiopi (héritage)' },
 ];
 
 interface Permissions {
@@ -50,12 +53,14 @@ interface Props {
   auditLog: AuditLog[];
   qualiopi: QualiopiCritere[];
   tentatives: TentativeWithResultats[];
+  documentsList: DocumentStatus[];
+  qualiopiConformite: QualiopiConformite;
   currentUser: User;
   allUsers: User[];
   permissions: Permissions;
 }
 
-export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, tentatives, currentUser, allUsers, permissions }: Props) {
+export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, tentatives, documentsList, qualiopiConformite, currentUser, allUsers, permissions }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<TabId>('infos');
   const [loading, setLoading] = React.useState(false);
@@ -168,8 +173,23 @@ export function DossierDetailClient({ dossier, pieces, auditLog, qualiopi, tenta
             canCreate={['gestionnaire', 'admin', 'super_admin'].includes(currentUser.role)}
           />
         )}
-        {activeTab === 'documents' && <TabLotFutur label="Documents" lot={4} />}
-        {activeTab === 'facturation' && <TabLotFutur label="Facturation" lot={6} />}
+        {activeTab === 'documents' && (
+          <TabDocuments
+            documentsList={documentsList}
+            dossierId={dossier.id}
+            canGenerate={['gestionnaire', 'admin', 'super_admin'].includes(currentUser.role)}
+            canSign={['gestionnaire', 'admin', 'super_admin'].includes(currentUser.role)}
+            canExport={['admin', 'super_admin'].includes(currentUser.role)}
+          />
+        )}
+        {activeTab === 'conformite' && (
+          <TabConformite
+            conformite={qualiopiConformite}
+            dossier={dossier}
+            canExport={['admin', 'super_admin'].includes(currentUser.role)}
+            canEdit={['gestionnaire', 'admin', 'super_admin'].includes(currentUser.role)}
+          />
+        )}
         {activeTab === 'historique' && <TabHistorique auditLog={auditLog} />}
         {activeTab === 'qualiopi' && (
           <TabQualiopi
@@ -728,6 +748,340 @@ function TabExamens({ tentatives, dossierId, canCreate }: {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── TabDocuments ─────────────────────────────────────────────────────────────
+
+function TabDocuments({
+  documentsList, dossierId, canGenerate, canSign, canExport,
+}: {
+  documentsList: DocumentStatus[];
+  dossierId: string;
+  canGenerate: boolean;
+  canSign: boolean;
+  canExport: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = React.useState<string | null>(null);
+  const [error, setError] = React.useState('');
+
+  const alerts = documentsList.filter((d) => {
+    if (d.statut === 'bloque') return true;
+    const type = d.type_document;
+    if ((type === 'convocation_formation' || type === 'contrat_formation') && d.statut === 'non_genere') return true;
+    return false;
+  });
+
+  async function handleGenerer(type: import("@/lib/db/types").TypeDocument) {
+    setLoading(type);
+    setError('');
+    try {
+      await actionGenererDocument(dossierId, type);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleSigner(type: import("@/lib/db/types").TypeDocument) {
+    setLoading(`sign-${type}`);
+    setError('');
+    try {
+      await actionSignerDocument(dossierId, type);
+      router.refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col gap-4">
+      {error && (
+        <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-[12px] px-3 py-2 rounded-[5px]">
+          {error}
+        </div>
+      )}
+
+      {/* Alertes */}
+      {alerts.length > 0 && (
+        <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-[6px] p-3">
+          <p className="text-[11px] font-semibold text-orange-700 dark:text-orange-300 uppercase mb-1">Documents requis</p>
+          {alerts.map((a) => (
+            <div key={a.type_document} className="flex items-center gap-1.5 text-[12px] text-orange-700 dark:text-orange-300 py-0.5">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              <span>{TYPE_DOCUMENT_LABELS[a.type_document]}</span>
+              {a.raison_bloque && <span className="text-[11px] text-foreground-muted">— {a.raison_bloque}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table des documents */}
+      <div className="rounded-[6px] border border-border bg-surface">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <p className="text-[12px] font-semibold">Documents du dossier</p>
+          {canExport && (
+            <Button size="xs" variant="outline">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Export ZIP
+            </Button>
+          )}
+        </div>
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left px-4 py-2 text-[11px] font-medium text-foreground-muted">Document</th>
+              <th className="text-left px-4 py-2 text-[11px] font-medium text-foreground-muted w-24">Statut</th>
+              <th className="text-left px-4 py-2 text-[11px] font-medium text-foreground-muted w-32">Généré le</th>
+              <th className="text-left px-4 py-2 text-[11px] font-medium text-foreground-muted w-28">Par</th>
+              <th className="text-right px-4 py-2 text-[11px] font-medium text-foreground-muted w-40">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {documentsList.map((item) => {
+              const doc = item.document;
+              const canGen = canGenerate && item.statut !== 'bloque' && item.statut !== 'signe';
+              const canGenRegenerate = canGenerate && doc?.statut === 'genere' && ['admin', 'super_admin'].includes('admin');
+              const isLoading = loading === item.type_document;
+              const isSignLoading = loading === `sign-${item.type_document}`;
+              return (
+                <tr key={item.type_document} className="border-b border-border last:border-0 hover:bg-surface-hover">
+                  <td className="px-4 py-2.5">
+                    <p className="font-medium">{TYPE_DOCUMENT_LABELS[item.type_document]}</p>
+                    {item.raison_bloque && (
+                      <p className="text-[11px] text-foreground-muted mt-0.5">{item.raison_bloque}</p>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge variant={STATUT_DOCUMENT_VARIANT[item.statut] as Parameters<typeof Badge>[0]['variant']}>
+                      {STATUT_DOCUMENT_LABELS[item.statut]}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2.5 text-foreground-muted">
+                    {doc?.genere_at ? formatDateTime(doc.genere_at) : '—'}
+                  </td>
+                  <td className="px-4 py-2.5 text-foreground-muted">
+                    {doc?.genere_par_prenom ? `${doc.genere_par_prenom} ${doc.genere_par_nom}` : '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center justify-end gap-1">
+                      {doc?.url_fichier && (
+                        <Button size="xs" variant="outline" asChild>
+                          <a href={doc.url_fichier} target="_blank" rel="noreferrer">
+                            <Download className="h-3 w-3" />
+                          </a>
+                        </Button>
+                      )}
+                      {canSign && doc?.statut === 'genere' && (
+                        <Button size="xs" variant="outline" onClick={() => handleSigner(item.type_document)} disabled={isSignLoading}>
+                          {isSignLoading ? '...' : 'Signer'}
+                        </Button>
+                      )}
+                      {canGen && (
+                        <Button size="xs" onClick={() => handleGenerer(item.type_document)} disabled={isLoading}>
+                          {isLoading ? '...' : doc ? 'Régénérer' : 'Générer'}
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── TabConformite ─────────────────────────────────────────────────────────────
+
+const COULEUR_ICON: Record<QualiopiCouleur, React.ReactNode> = {
+  vert:   <CheckCircle className="h-4 w-4 text-green-600" />,
+  orange: <AlertTriangle className="h-4 w-4 text-orange-500" />,
+  rouge:  <XCircle className="h-4 w-4 text-red-600" />,
+  gris:   <Minus className="h-4 w-4 text-foreground-subtle" />,
+};
+
+function TabConformite({
+  conformite, dossier, canExport, canEdit,
+}: {
+  conformite: QualiopiConformite;
+  dossier: DossierWithRelations;
+  canExport: boolean;
+  canEdit: boolean;
+}) {
+  const router = useRouter();
+  const [selectedCritere, setSelectedCritere] = React.useState<QualiopiCritereStatut | null>(null);
+  const [editMode, setEditMode] = React.useState(false);
+  const [objectif, setObjectif] = React.useState((dossier as unknown as { objectif_formation?: string }).objectif_formation ?? '');
+  const [evalPre, setEvalPre] = React.useState((dossier as unknown as { evaluation_pre_formation?: string }).evaluation_pre_formation ?? '');
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
+
+  const { taux_numerateur, taux_denominateur, taux_pourcent, criteres } = conformite;
+  const barColor = taux_pourcent >= 80 ? 'bg-green-500' : taux_pourcent >= 50 ? 'bg-orange-400' : 'bg-red-500';
+
+  async function handleSaveConformite() {
+    setSaving(true);
+    setSaveError('');
+    try {
+      await actionUpdateDossierConformite(dossier.id, objectif, evalPre);
+      setEditMode(false);
+      router.refresh();
+    } catch (e) {
+      setSaveError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-4 flex flex-col gap-4">
+      {/* En-tête taux */}
+      <div className="rounded-[6px] border border-border bg-surface p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-[16px] font-bold">{taux_numerateur} / {taux_denominateur} critères couverts ({taux_pourcent} %)</p>
+            <p className="text-[11px] text-foreground-muted mt-0.5">Taux de conformité Qualiopi</p>
+          </div>
+          {canExport && (
+            <Button size="sm" variant="outline">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Exporter dossier de preuve
+            </Button>
+          )}
+        </div>
+        <div className="h-2 bg-surface-hover rounded-full overflow-hidden">
+          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${taux_pourcent}%` }} />
+        </div>
+      </div>
+
+      {/* Champs critères 1 & 2 */}
+      {canEdit && (
+        <div className="rounded-[6px] border border-border bg-surface p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-semibold">Données de positionnement (critères 1 & 2)</p>
+            {!editMode && (
+              <Button size="xs" variant="outline" onClick={() => setEditMode(true)}>Modifier</Button>
+            )}
+          </div>
+          {editMode ? (
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="text-[11px] text-foreground-muted block mb-0.5">Objectif de formation</label>
+                <textarea
+                  value={objectif}
+                  onChange={(e) => setObjectif(e.target.value)}
+                  className="w-full border border-border rounded-[5px] px-2 py-1.5 text-[12px] bg-surface resize-none focus:outline-none focus:ring-1 focus:ring-accent"
+                  rows={2}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-foreground-muted block mb-0.5">Évaluation pré-formation</label>
+                <textarea
+                  value={evalPre}
+                  onChange={(e) => setEvalPre(e.target.value)}
+                  className="w-full border border-border rounded-[5px] px-2 py-1.5 text-[12px] bg-surface resize-none focus:outline-none focus:ring-1 focus:ring-accent"
+                  rows={2}
+                />
+              </div>
+              {saveError && <p className="text-[12px] text-red-500">{saveError}</p>}
+              <div className="flex gap-2">
+                <Button size="xs" onClick={handleSaveConformite} disabled={saving}>
+                  {saving ? 'Sauvegarde...' : 'Enregistrer'}
+                </Button>
+                <Button size="xs" variant="ghost" onClick={() => setEditMode(false)}>Annuler</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 text-[12px]">
+              <div>
+                <p className="text-[11px] text-foreground-muted mb-0.5">Objectif de formation</p>
+                <p className={objectif ? '' : 'text-foreground-subtle italic'}>{objectif || 'Non renseigné'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-foreground-muted mb-0.5">Évaluation pré-formation</p>
+                <p className={evalPre ? '' : 'text-foreground-subtle italic'}>{evalPre || 'Non renseignée'}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grille 7 critères */}
+      <div className="rounded-[6px] border border-border bg-surface">
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-center px-3 py-2 text-[11px] font-medium text-foreground-muted w-8">#</th>
+              <th className="text-left px-4 py-2 text-[11px] font-medium text-foreground-muted">Critère Qualiopi</th>
+              <th className="text-center px-4 py-2 text-[11px] font-medium text-foreground-muted w-24">Statut</th>
+              <th className="text-center px-4 py-2 text-[11px] font-medium text-foreground-muted w-16">Détail</th>
+            </tr>
+          </thead>
+          <tbody>
+            {criteres.map((c) => (
+              <tr
+                key={c.num}
+                className="border-b border-border last:border-0 hover:bg-surface-hover cursor-pointer"
+                onClick={() => setSelectedCritere(selectedCritere?.num === c.num ? null : c)}
+              >
+                <td className="px-3 py-3 text-center text-foreground-muted font-mono">{c.num}</td>
+                <td className="px-4 py-3 font-medium">{QUALIOPI_CRITERE_LABELS[c.num]}</td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-center gap-1.5">
+                    {COULEUR_ICON[c.couleur]}
+                    <span className={
+                      c.couleur === 'vert' ? 'text-green-700 dark:text-green-300' :
+                      c.couleur === 'orange' ? 'text-orange-600 dark:text-orange-400' :
+                      c.couleur === 'rouge' ? 'text-red-600 dark:text-red-400' :
+                      'text-foreground-muted'
+                    }>{QUALIOPI_COULEUR_LABELS[c.couleur]}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-accent">
+                  {selectedCritere?.num === c.num ? '▲' : '▼'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Drawer inline critère */}
+      {selectedCritere && (
+        <div className="rounded-[6px] border border-border bg-surface-hover p-4">
+          <div className="flex items-center gap-2 mb-3">
+            {COULEUR_ICON[selectedCritere.couleur]}
+            <p className="text-[13px] font-semibold">Critère {selectedCritere.num} — {QUALIOPI_CRITERE_LABELS[selectedCritere.num]}</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            {selectedCritere.preuves.map((p, i) => (
+              <div key={i} className="flex items-center justify-between text-[12px] py-1 border-b border-border last:border-0">
+                <span>{p.label}</span>
+                <span className={
+                  p.statut === 'presente' ? 'text-green-600' :
+                  p.statut === 'partielle' ? 'text-orange-500' :
+                  p.statut === 'non_applicable' ? 'text-foreground-muted' :
+                  'text-red-600'
+                }>
+                  {p.statut === 'presente' ? '✓ Présente' :
+                   p.statut === 'partielle' ? '⚠ Partielle' :
+                   p.statut === 'non_applicable' ? '— N/A' :
+                   '✗ Manquante'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

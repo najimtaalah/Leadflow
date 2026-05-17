@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDossierById, getPiecesJustificatives, getAuditLog, computeQualiopiCriteres } from "@/lib/db/dossiers";
 import { getTentativesByDossier } from "@/lib/db/tentatives";
+import { computeDocumentsList } from "@/lib/db/documents";
+import { computeQualiopiConformite } from "@/lib/db/qualiopi";
 import { getCurrentUser, getAllUsers, canValidateBlocAdmin, canValidateBlocFinancier, canSaisieBlocFinancier, canActivateApprenant, canViewAllLeads } from "@/lib/auth";
 import { PageHeader, PageContent } from "@/components/ds/app-layout";
 import { Badge } from "@/components/ui/badge";
@@ -19,12 +21,14 @@ export default async function DossierPage({ params }: Props) {
   const dossier = await getDossierById(id);
   if (!dossier) notFound();
 
-  const [pieces, auditLog, qualiopi, allUsers, tentatives] = await Promise.all([
+  const [pieces, auditLog, qualiopi, allUsers, tentatives, documentsList, qualiopiConformite] = await Promise.all([
     getPiecesJustificatives(id),
     getAuditLog(id),
     computeQualiopiCriteres(id),
     getAllUsers(),
     getTentativesByDossier(id),
+    computeDocumentsList(id),
+    computeQualiopiConformite(id),
   ]);
 
   const permissions = {
@@ -57,6 +61,8 @@ export default async function DossierPage({ params }: Props) {
           auditLog={auditLog}
           qualiopi={qualiopi}
           tentatives={tentatives}
+          documentsList={documentsList}
+          qualiopiConformite={qualiopiConformite}
           currentUser={user}
           allUsers={allUsers}
           permissions={permissions}

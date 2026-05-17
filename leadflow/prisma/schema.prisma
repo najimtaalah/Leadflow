@@ -187,6 +187,9 @@ model User {
   dossiers_gestionnaire Dossier[]          @relation("DossierGestionnaire")
   audit_logs            AuditLog[]
   resultats_saisis      ResultatExamenDetail[]
+  documents_generes     DocumentDossier[]  @relation("DocumentGenereParUser")
+  documents_signes      DocumentDossier[]  @relation("DocumentSigneParUser")
+  qualiopi_historique   QualiopiHistorique[]
 
   @@map("users")
 }
@@ -314,11 +317,14 @@ model Dossier {
   statut                  DossierStatut    @default(pre_dossier)
   statut_bloc_admin       BlocStatut       @default(non_demarre)
   statut_bloc_financier   BlocStatut       @default(non_demarre)
-  notes                   String?
-  notes_financier         String?
-  date_creation           DateTime         @default(now())
-  date_activation         DateTime?
-  updated_at              DateTime         @updatedAt
+  notes                          String?
+  notes_financier                String?
+  objectif_formation             String?
+  evaluation_pre_formation       String?
+  evaluation_pre_formation_at    DateTime?
+  date_creation                  DateTime         @default(now())
+  date_activation                DateTime?
+  updated_at                     DateTime         @updatedAt
 
   pieces_justificatives PieceJustificative[]
   audit_logs            AuditLog[]
@@ -327,6 +333,8 @@ model Dossier {
   resultats_examens     ResultatExamenDetail[]
   convocation_requests  ConvocationRequest[]
   attestation_requests  AttestationRequest[]
+  documents             DocumentDossier[]
+  qualiopi_historique   QualiopiHistorique[]
 
   @@index([id_apprenant])
   @@index([id_lead_origine])
@@ -548,4 +556,90 @@ model AttestationRequest {
 
   @@index([dossier_id])
   @@map("attestation_requests")
+}
+
+// ─── Lot 6 — Documents & Module Qualiopi visuel ───────────────────────────────
+
+enum TypeDocument {
+  convocation_formation
+  contrat_formation
+  emargement
+  attestation_formation
+  certificat
+  facture
+  convocation_examen_theo
+  convocation_examen_prat
+}
+
+enum SourceTypeDocument {
+  session_cours
+  session_edof
+  session_examen_theo
+  session_examen_prat
+  dossier
+}
+
+enum StatutDocument {
+  non_genere
+  en_attente
+  genere
+  signe
+  bloque
+}
+
+enum QualiopiCouleur {
+  vert
+  orange
+  rouge
+  gris
+}
+
+enum QualiopiDeclencheurType {
+  document
+  session
+  champ
+  audit
+  manuel
+}
+
+model DocumentDossier {
+  id             String             @id
+  dossier_id     String
+  dossier        Dossier            @relation(fields: [dossier_id], references: [id])
+  type_document  TypeDocument
+  source_type    SourceTypeDocument
+  source_id      String?
+  statut         StatutDocument     @default(non_genere)
+  url_fichier    String?
+  genere_at      DateTime?
+  genere_par_id  String?
+  genere_par     User?              @relation("DocumentGenereParUser", fields: [genere_par_id], references: [id])
+  signe_at       DateTime?
+  signe_par_id   String?
+  signe_par      User?              @relation("DocumentSigneParUser", fields: [signe_par_id], references: [id])
+  created_at     DateTime           @default(now())
+  updated_at     DateTime           @updatedAt
+
+  @@unique([dossier_id, type_document])
+  @@index([dossier_id])
+  @@map("documents_dossier")
+}
+
+model QualiopiHistorique {
+  id                String                  @id
+  dossier_id        String
+  dossier           Dossier                 @relation(fields: [dossier_id], references: [id])
+  critere_num       Int
+  statut_avant      QualiopiCouleur
+  statut_apres      QualiopiCouleur
+  declencheur_type  QualiopiDeclencheurType
+  declencheur_id    String?
+  acteur_id         String?
+  acteur            User?                   @relation(fields: [acteur_id], references: [id])
+  note              String?
+  created_at        DateTime                @default(now())
+
+  @@index([dossier_id])
+  @@index([dossier_id, critere_num])
+  @@map("qualiopi_historique")
 }

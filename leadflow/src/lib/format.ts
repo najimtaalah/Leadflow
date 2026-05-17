@@ -267,3 +267,48 @@ export const STATUT_RESULTAT_VARIANT: Record<string, string> = {
   reussi: 'green',
   echoue: 'red',
 };
+
+// Lot 6
+export const TYPE_DOCUMENT_LABELS: Record<string, string> = {
+  convocation_formation:   'Convocation formation',
+  contrat_formation:       'Contrat de formation',
+  emargement:              "Émargement (feuille de présence)",
+  attestation_formation:   'Attestation de formation',
+  certificat:              'Certificat',
+  facture:                 'Facture',
+  convocation_examen_theo: 'Convocation examen théorique',
+  convocation_examen_prat: 'Convocation examen pratique',
+};
+
+export const STATUT_DOCUMENT_LABELS: Record<string, string> = {
+  non_genere: 'Non généré',
+  en_attente: 'En attente',
+  genere:     'Généré',
+  signe:      'Signé',
+  bloque:     'Bloqué',
+};
+
+export const STATUT_DOCUMENT_VARIANT: Record<string, string> = {
+  non_genere: 'gray',
+  en_attente: 'orange',
+  genere:     'blue',
+  signe:      'green',
+  bloque:     'red',
+};
+
+export const QUALIOPI_COULEUR_LABELS: Record<string, string> = {
+  vert:   'Couvert',
+  orange: 'Partiel',
+  rouge:  'Manquant',
+  gris:   'N/A',
+};
+
+export const QUALIOPI_CRITERE_LABELS: Record<number, string> = {
+  1: 'Besoin & objectif',
+  2: 'Positionnement',
+  3: 'Adaptation',
+  4: 'Suivi exécution',
+  5: 'Évaluation des acquis',
+  6: 'Résultats',
+  7: 'Réclamations',
+};

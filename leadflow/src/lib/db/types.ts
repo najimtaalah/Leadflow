@@ -353,3 +353,83 @@ export interface AffectationWithApprenantAndTentative extends AffectationWithApp
   resultat_detail_score: number | null;
   resultat_detail_mention: string | null;
 }
+
+// ─── Lot 6 — Documents & Module Qualiopi visuel ───────────────────────────────
+
+export type TypeDocument =
+  | 'convocation_formation'
+  | 'contrat_formation'
+  | 'emargement'
+  | 'attestation_formation'
+  | 'certificat'
+  | 'facture'
+  | 'convocation_examen_theo'
+  | 'convocation_examen_prat';
+
+export type SourceTypeDocument =
+  | 'session_cours'
+  | 'session_edof'
+  | 'session_examen_theo'
+  | 'session_examen_prat'
+  | 'dossier';
+
+export type StatutDocument = 'non_genere' | 'en_attente' | 'genere' | 'signe' | 'bloque';
+
+export type QualiopiCouleur = 'vert' | 'orange' | 'rouge' | 'gris';
+
+export type QualiopiDeclencheurType = 'document' | 'session' | 'champ' | 'audit' | 'manuel';
+
+export interface DocumentDossier {
+  id: string;
+  dossier_id: string;
+  type_document: TypeDocument;
+  source_type: SourceTypeDocument;
+  source_id: string | null;
+  statut: StatutDocument;
+  url_fichier: string | null;
+  genere_at: string | null;
+  genere_par_id: string | null;
+  genere_par_prenom: string | null;
+  genere_par_nom: string | null;
+  signe_at: string | null;
+  signe_par_id: string | null;
+  signe_par_prenom: string | null;
+  signe_par_nom: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QualiopiHistoriqueRow {
+  id: string;
+  dossier_id: string;
+  critere_num: number;
+  statut_avant: QualiopiCouleur;
+  statut_apres: QualiopiCouleur;
+  declencheur_type: QualiopiDeclencheurType;
+  declencheur_id: string | null;
+  acteur_id: string | null;
+  acteur_prenom: string | null;
+  acteur_nom: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface QualiopiPreuve {
+  label: string;
+  statut: 'presente' | 'manquante' | 'partielle' | 'non_applicable';
+  lien_type?: string;
+  lien_id?: string;
+}
+
+export interface QualiopiCritereStatut {
+  num: number;
+  couleur: QualiopiCouleur;
+  preuves: QualiopiPreuve[];
+}
+
+export interface QualiopiConformite {
+  criteres: QualiopiCritereStatut[];
+  taux_numerateur: number;
+  taux_denominateur: number;
+  taux_pourcent: number;
+}
