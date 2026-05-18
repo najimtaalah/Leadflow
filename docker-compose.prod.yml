@@ -51,6 +51,14 @@ services:
     ports:
       - "3002:3000"
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+
   # nginx is managed by the host system nginx (port 80/443 conflict with containerised nginx)
   # Keep this service definition for reference but use the 'nginx' profile to opt-in
   nginx:
@@ -65,7 +73,7 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
       - certbot_www:/var/www/certbot:ro
     depends_on:
-      - leadflow
+      - frontend
       - backend
 
 volumes:
