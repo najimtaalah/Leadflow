@@ -42,10 +42,10 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
       sidebarSections={NAV_SECTIONS}
       sidebarLogo={
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-6 h-6 rounded-[4px] bg-sidebar-item-active text-white text-[11px] font-bold shrink-0 leading-none">
+          <div className="flex items-center justify-center w-6 h-6 rounded-[4px] bg-primary text-primary-foreground text-[11px] font-bold shrink-0 leading-none">
             L+
           </div>
-          <span className="text-[14px] font-bold text-white tracking-tight">LeadFlow+</span>
+          <span className="text-[14px] font-bold text-foreground tracking-tight">LeadFlow+</span>
         </div>
       }
     >

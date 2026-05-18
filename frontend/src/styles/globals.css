@@ -4,43 +4,44 @@
 
 @layer base {
   :root {
-    /* Base */
-    --background: 0 0% 100%;
-    --foreground: 224 71.4% 4.1%;
-    --foreground-muted: 220 8.9% 46.1%;
-    --foreground-subtle: 220 8.9% 62%;
+    /* ── LeadFlow+ Design System — distinct from old LeadFlow ─────────── */
+    --background: 0 0% 99%;
+    --foreground: 220 20% 10%;
+    --foreground-muted: 220 12% 44%;
+    --foreground-subtle: 220 10% 62%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 224 71.4% 4.1%;
-    --radius: 6px;
+    --border: 220 16% 91%;
+    --input: 220 16% 91%;
+    /* Teal-emerald primary — clearly ≠ LeadFlow's royal blue */
+    --ring: 174 62% 38%;
+    --radius: 0.25rem;
 
-    /* Primary */
-    --primary: 220.9 39.3% 11%;
-    --primary-foreground: 210 20% 98%;
+    /* Primary: teal-emerald */
+    --primary: 174 62% 38%;
+    --primary-foreground: 0 0% 100%;
 
     /* Secondary */
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
+    --secondary: 174 20% 95%;
+    --secondary-foreground: 174 62% 25%;
 
     /* Muted */
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 12% 44%;
 
     /* Accent */
-    --accent: 220 14.3% 95.9%;
-    --accent-foreground: 220.9 39.3% 11%;
+    --accent: 174 20% 95%;
+    --accent-foreground: 174 62% 25%;
 
     /* Destructive */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
 
-    /* Sidebar — Density Pro */
-    --sidebar-bg: 220 13% 97%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-item-hover: 220 13% 93%;
-    --sidebar-item-active: 220 13% 89%;
-    --sidebar-icon: 220 8.9% 55%;
+    /* Sidebar — light with teal accents (distinct from old dark navy) */
+    --sidebar-bg: 0 0% 99%;
+    --sidebar-border: 220 16% 91%;
+    --sidebar-item-hover: 174 28% 95%;
+    --sidebar-item-active: 174 28% 90%;
+    --sidebar-icon: 220 10% 58%;
 
     /* Status badges */
     --status-gray: 220 8.9% 40%;
@@ -63,7 +64,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: "Space Grotesk", system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
