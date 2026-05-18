@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth.store";
 import { LoginPage } from "@/pages/Login";
 import { DashboardPage } from "@/pages/Dashboard";
+import { DossierDetailPage } from "@/pages/DossierDetail";
 import { AppLayout } from "@/components/ds/AppLayout";
 import {
   LayoutDashboard,
@@ -40,7 +41,12 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
     <AppLayout
       sidebarSections={NAV_SECTIONS}
       sidebarLogo={
-        <span className="text-[14px] font-bold text-foreground tracking-tight">LeadFlow+</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center w-6 h-6 rounded-[4px] bg-sidebar-item-active text-white text-[11px] font-bold shrink-0 leading-none">
+            L+
+          </div>
+          <span className="text-[14px] font-bold text-white tracking-tight">LeadFlow+</span>
+        </div>
       }
     >
       {children}
@@ -61,12 +67,21 @@ export default function App() {
             </ProtectedLayout>
           }
         />
+        {/* Lot 6 — Dossier detail with Documents & Conformité tabs */}
+        <Route
+          path="/dossiers/:id"
+          element={
+            <ProtectedLayout>
+              <DossierDetailPage />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/*"
           element={
             <ProtectedLayout>
               <div className="p-6 text-foreground-muted text-[13px]">
-                Page en construction — Lot 0 socle uniquement.
+                Page en construction.
               </div>
             </ProtectedLayout>
           }

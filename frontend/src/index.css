@@ -4,42 +4,44 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    --foreground-muted: 215 16% 47%;
-    --foreground-subtle: 215 16% 65%;
+    /* ── LeadFlow+ Design System ─────────────────────────────────────── */
+    --background: 0 0% 98%;
+    --foreground: 220 20% 10%;
+    --foreground-muted: 220 12% 44%;
+    --foreground-subtle: 220 10% 62%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
-    --radius: 0.375rem;
+    --border: 220 18% 90%;
+    --input: 220 18% 90%;
+    /* Teal primary — distinct from old LeadFlow's blue */
+    --ring: 174 62% 38%;
+    --radius: 0.25rem;
 
-    --primary: 221 83% 53%;
+    --primary: 174 62% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 174 20% 95%;
+    --secondary-foreground: 220 20% 10%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 12% 44%;
 
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 174 20% 95%;
+    --accent-foreground: 220 20% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Sidebar */
-    --sidebar-bg: 222 47% 11%;
-    --sidebar-border: 215 28% 17%;
-    --sidebar-item-hover: 215 28% 17%;
-    --sidebar-item-active: 221 83% 53%;
-    --sidebar-icon: 215 16% 65%;
+    /* Sidebar — warm charcoal, distinct from old LeadFlow's cold navy */
+    --sidebar-bg: 210 22% 8%;
+    --sidebar-border: 210 18% 13%;
+    --sidebar-item-hover: 210 18% 14%;
+    --sidebar-item-active: 174 62% 38%;
+    --sidebar-icon: 215 14% 56%;
 
     /* Statuts */
-    --status-gray: 215 16% 47%;
-    --status-gray-bg: 210 40% 96%;
-    --status-blue: 221 83% 53%;
+    --status-gray: 220 12% 44%;
+    --status-gray-bg: 220 14% 95%;
+    --status-blue: 217 91% 60%;
     --status-blue-bg: 214 100% 97%;
     --status-orange: 25 95% 53%;
     --status-orange-bg: 34 100% 95%;

@@ -46,7 +46,7 @@ export function Sidebar({ sections, collapsed = false, logo, footer }: SidebarPr
         {sections.map((section, i) => (
           <div key={i} className="mb-1">
             {section.title && !collapsed && (
-              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-foreground-subtle">
+              <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                 {section.title}
               </p>
             )}
@@ -60,8 +60,8 @@ export function Sidebar({ sections, collapsed = false, logo, footer }: SidebarPr
                     cn(
                       "group flex items-center gap-2 mx-1 px-2 h-[30px] rounded-[5px] text-[13px] transition-colors",
                       isActive
-                        ? "bg-sidebar-item-active text-foreground font-medium"
-                        : "text-foreground-muted hover:bg-sidebar-item-hover hover:text-foreground",
+                        ? "bg-sidebar-item-active text-white font-semibold"
+                        : "text-slate-400 hover:bg-sidebar-item-hover hover:text-slate-100",
                       collapsed && "justify-center px-0 w-[36px]",
                     )
                   }
@@ -73,14 +73,14 @@ export function Sidebar({ sections, collapsed = false, logo, footer }: SidebarPr
                         className={cn(
                           "shrink-0 transition-colors",
                           collapsed ? "h-[15px] w-[15px]" : "h-[14px] w-[14px]",
-                          isActive ? "text-foreground" : "text-sidebar-icon group-hover:text-foreground",
+                          isActive ? "text-white" : "text-slate-500 group-hover:text-slate-100",
                         )}
                       />
                       {!collapsed && (
                         <>
                           <span className="flex-1 truncate">{item.label}</span>
                           {item.count !== undefined && (
-                            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-muted text-foreground-muted text-[11px] font-medium tabular-nums flex items-center justify-center">
+                            <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-slate-700 text-slate-300 text-[11px] font-medium tabular-nums flex items-center justify-center">
                               {item.count}
                             </span>
                           )}
