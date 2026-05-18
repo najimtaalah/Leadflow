@@ -3,6 +3,7 @@
 const express             = require('express');
 const router              = express.Router();
 const DossiersController  = require('../controllers/dossiersController');
+const FinancementCtrl     = require('../controllers/financementController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 // Toutes les routes dossiers nécessitent authentification
@@ -149,5 +150,16 @@ router.post(
   authorize(...ROLES_CMA),
   DossiersController.importEDOF
 );
+
+// ── Lot 7 — Financement par dossier ──────────────────────────────────────────
+const ROLES_FIN_READ  = ['super_admin', 'role_admin', 'gestionnaire', 'commercial'];
+const ROLES_FIN_WRITE = ['super_admin', 'role_admin', 'gestionnaire'];
+const ROLES_FIN_ADMIN = ['super_admin', 'role_admin'];
+
+router.get(  '/:dossierId/financement',         authorize(...ROLES_FIN_READ),  FinancementCtrl.get);
+router.post( '/:dossierId/financement',         authorize(...ROLES_FIN_WRITE), FinancementCtrl.create);
+router.patch('/:dossierId/financement',         authorize(...ROLES_FIN_WRITE), FinancementCtrl.update);
+router.post( '/:dossierId/financement/valider', authorize(...ROLES_FIN_ADMIN), FinancementCtrl.valider);
+router.post( '/:dossierId/financement/statut',  authorize(...ROLES_FIN_WRITE), FinancementCtrl.changerStatut);
 
 module.exports = router;

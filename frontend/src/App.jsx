@@ -9,7 +9,8 @@ import Register   from './pages/Register';
 import Dashboard  from './pages/Dashboard';
 import Leads      from './pages/Leads';
 import Dossiers   from './pages/Dossiers';
-import Finance    from './pages/Finance';
+import Finance      from './pages/Finance';
+import Facturation  from './pages/Facturation';
 import Agenda     from './pages/Agenda';
 import Reporting  from './pages/Reporting';
 import Commissions from './pages/Commissions';
@@ -69,7 +70,8 @@ export default function App() {
           <Route path="dashboard"  element={<Dashboard />} />
           <Route path="leads"      element={<Leads />} />
           <Route path="dossiers"   element={<Dossiers />} />
-          <Route path="finance"    element={<Finance />} />
+          <Route path="finance"      element={<Finance />} />
+          <Route path="facturation" element={<Facturation />} />
           <Route path="agenda"     element={<Agenda />} />
           <Route path="reporting"  element={<Reporting />} />
           <Route path="agent"      element={<Agent />} />

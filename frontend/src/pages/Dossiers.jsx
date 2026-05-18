@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import api from '../utils/api';
 import Modal from '../components/ui/Modal';
 import useAuthStore from '../store/authStore';
+import FinancementTab from '../components/dossiers/FinancementTab';
 
 const STATUTS_DOSSIER = ['Actif', 'En attente', 'Clôturé', 'Annulé'];
 const STATUT_COLORS = {
@@ -54,6 +55,10 @@ export default function Dossiers() {
   // ── Modal création / édition ────────────────────────────────────────────
   const [showModal, setShowModal]   = useState(false);
   const [editId, setEditId]         = useState(null);
+
+  // ── Modal Financement dossier ────────────────────────────────────────────
+  const [showFinancement, setShowFinancement]   = useState(false);
+  const [financementDossier, setFinancementDossier] = useState(null);
   const [form, setForm]             = useState(emptyForm);
   const [saving, setSaving]         = useState(false);
   const [err, setErr]               = useState('');
@@ -352,8 +357,14 @@ export default function Dossiers() {
                             {d.statut_nom || d.statut || '—'}
                           </span>
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <button className="btn btn-sm" onClick={() => openEdit(d)} title="Modifier">✏️</button>
+                          <button
+                            className="btn btn-sm"
+                            style={{ marginLeft: 4 }}
+                            title="Financement"
+                            onClick={() => { setFinancementDossier(d); setShowFinancement(true); }}
+                          >🧾</button>
                         </td>
                       </tr>
                     ))}
@@ -843,6 +854,17 @@ export default function Dossiers() {
               {Math.max(0, (parseFloat(form.cout_total_formation) || 0) - (parseFloat(form.part_financeur) || 0)).toLocaleString('fr-FR')} €
             </strong>
           </div>
+        )}
+      </Modal>
+
+      {/* ── Modal Financement dossier (Lot 7) ─────────────────────────────── */}
+      <Modal
+        open={showFinancement}
+        title={financementDossier ? `Financement — ${financementDossier.prenom || ''} ${financementDossier.nom}` : 'Financement'}
+        onClose={() => setShowFinancement(false)}
+      >
+        {financementDossier && (
+          <FinancementTab dossierId={financementDossier.id} />
         )}
       </Modal>
     </div>

@@ -161,9 +161,10 @@ export default function Sidebar() {
             <NavDirect to="/dossiers"    icon="📁">Dossiers</NavDirect>
 
             <span className="nav-section">Gestion</span>
-            <NavDirect to="/taches"      icon="✅">Tâches CMA</NavDirect>
-            <NavDirect to="/finance"     icon="💰">Finance</NavDirect>
-            <NavDirect to="/agenda"      icon="📅">Agenda</NavDirect>
+            <NavDirect to="/taches"       icon="✅">Tâches CMA</NavDirect>
+            <NavDirect to="/finance"      icon="💰">Finance</NavDirect>
+            <NavDirect to="/facturation"  icon="🧾">Facturation</NavDirect>
+            <NavDirect to="/agenda"       icon="📅">Agenda</NavDirect>
             <NavDirect to="/reporting"   icon="📈">Reporting</NavDirect>
             <NavDirect to="/commissions" icon="🏆">Commissions</NavDirect>
             <NavDirect to="/agent"       icon="🤖">Agent IA</NavDirect>
