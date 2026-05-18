@@ -32,8 +32,11 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30">
       <div className="w-full max-w-[360px] bg-background border border-border rounded-lg shadow-sm p-8">
         <div className="mb-6 text-center">
-          <h1 className="text-[20px] font-semibold text-foreground">LeadFlow+</h1>
-          <p className="text-[13px] text-foreground-muted mt-1">Connexion à votre espace</p>
+          <h1 className="text-[24px] font-bold text-foreground">LeadFlow+</h1>
+          <span className="inline-block mt-2 px-3 py-1 bg-blue-600 text-white text-[12px] font-bold rounded-full tracking-wide uppercase">
+            v2.0 — Nouvelle version
+          </span>
+          <p className="text-[13px] text-foreground-muted mt-2">Connexion à votre espace</p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
