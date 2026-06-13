@@ -312,3 +312,51 @@ export const QUALIOPI_CRITERE_LABELS: Record<number, string> = {
   6: 'Résultats',
   7: 'Réclamations',
 };
+
+// Lot 9 — Qualiopi Action Tracker
+export const ACTION_STATUT_LABELS: Record<string, string> = {
+  a_faire:   'À faire',
+  en_cours:  'En cours',
+  fait:      'Fait',
+  en_retard: 'En retard',
+  annule:    'Annulé',
+};
+
+export const ACTION_STATUT_VARIANT: Record<string, string> = {
+  a_faire:   'blue',
+  en_cours:  'orange',
+  fait:      'green',
+  en_retard: 'red',
+  annule:    'gray',
+};
+
+export const ACTION_PRIORITE_LABELS: Record<string, string> = {
+  low:      'Faible',
+  medium:   'Moyen',
+  high:     'Élevé',
+  critical: 'Critique',
+};
+
+export const ACTION_PRIORITE_VARIANT: Record<string, string> = {
+  low:      'gray',
+  medium:   'blue',
+  high:     'orange',
+  critical: 'red',
+};
+
+export const ACTION_INDICATEUR_LABELS: Record<string, string> = {
+  'IND-23': 'IND-23',
+  'IND-24': 'IND-24',
+  'IND-25': 'IND-25',
+  'CRIT-5': 'CRIT-5',
+  'CRIT-6': 'CRIT-6',
+};
+
+export const ACTION_FORMATION_LABELS: Record<string, string> = {
+  TAXI:          'Taxi',
+  VTC:           'VTC',
+  VMDTR:         'VMDTR',
+  ANGLAIS:       'Anglais',
+  FRANCAIS_FLE:  'Français FLE',
+  GRANDE_REMISE: 'Grande Remise VTC',
+};

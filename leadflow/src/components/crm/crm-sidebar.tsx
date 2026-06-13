@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import {
   Users, FolderOpen, Bell, DollarSign, BarChart2,
-  GraduationCap, Zap, CalendarDays, ClipboardList, BookOpen, Car
+  GraduationCap, Zap, CalendarDays, ClipboardList, BookOpen, Car, ShieldCheck
 } from "lucide-react";
 import { Sidebar } from "@/components/ds/sidebar";
 import type { SidebarSection } from "@/components/ds/sidebar";
@@ -29,6 +29,7 @@ export function CrmSidebar({ relancesEnRetard, currentUserRole, currentUserName 
     if (pathname.startsWith('/sessions/edof')) return 'sessions-edof';
     if (pathname.startsWith('/sessions/examens-theoriques')) return 'sessions-theoriques';
     if (pathname.startsWith('/sessions/examens-pratiques')) return 'sessions-pratiques';
+    if (pathname.startsWith('/qualiopi/actions')) return 'qualiopi-actions';
     return '';
   };
 
@@ -56,6 +57,12 @@ export function CrmSidebar({ relancesEnRetard, currentUserRole, currentUserName 
         { id: 'sessions-edof', label: 'EDOF / CPF', href: '/sessions/edof', icon: ClipboardList },
         { id: 'sessions-theoriques', label: 'Examens théoriques', href: '/sessions/examens-theoriques', icon: BookOpen },
         { id: 'sessions-pratiques', label: 'Examens pratiques', href: '/sessions/examens-pratiques', icon: Car },
+      ],
+    },
+    {
+      title: 'Qualiopi',
+      items: [
+        { id: 'qualiopi-actions', label: 'Actions', href: '/qualiopi/actions', icon: ShieldCheck },
       ],
     },
   ];

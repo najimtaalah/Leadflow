@@ -643,3 +643,46 @@ model QualiopiHistorique {
   @@index([dossier_id, critere_num])
   @@map("qualiopi_historique")
 }
+
+// ─── Lot 9 — Qualiopi Action Tracker ──────────────────────────────────────────
+
+model ActionQualiopi {
+  id                    String   @id @default(uuid())
+  indicateur            String   @db.VarChar(10)
+  formation             String?  @db.VarChar(50)
+  titre                 String   @db.VarChar(255)
+  description           String?
+  responsable           String?  @db.VarChar(100)
+  date_echeance         DateTime? @db.Date
+  statut                String   @default("a_faire") @db.VarChar(20)
+  priorite              String   @default("medium") @db.VarChar(10)
+  preuve                String?
+  preuve_fichier_url    String?
+  source_veille_semaine String?  @db.VarChar(10)
+  created_at            DateTime @default(now()) @db.Timestamptz()
+  updated_at            DateTime @default(now()) @db.Timestamptz()
+  created_by            String?  @db.VarChar(100)
+
+  history ActionQualiopiHistory[]
+
+  @@index([indicateur])
+  @@index([statut])
+  @@index([formation])
+  @@index([date_echeance])
+  @@index([priorite])
+  @@map("actions_qualiopi")
+}
+
+model ActionQualiopiHistory {
+  id           String   @id @default(uuid())
+  action_id    String
+  action       ActionQualiopi @relation(fields: [action_id], references: [id], onDelete: Cascade)
+  statut_avant String?  @db.VarChar(20)
+  statut_apres String   @db.VarChar(20)
+  changed_by   String?  @db.VarChar(100)
+  note         String?
+  created_at   DateTime @default(now()) @db.Timestamptz()
+
+  @@index([action_id])
+  @@map("actions_qualiopi_history")
+}

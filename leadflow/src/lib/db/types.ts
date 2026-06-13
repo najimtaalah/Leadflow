@@ -433,3 +433,58 @@ export interface QualiopiConformite {
   taux_denominateur: number;
   taux_pourcent: number;
 }
+
+// ─── Lot 9 — Qualiopi Action Tracker ──────────────────────────────────────────
+
+export type ActionQualiopiStatut = 'a_faire' | 'en_cours' | 'fait' | 'en_retard' | 'annule';
+export type ActionQualiopiPriorite = 'low' | 'medium' | 'high' | 'critical';
+export type ActionQualiopiIndicateur = 'IND-23' | 'IND-24' | 'IND-25' | 'CRIT-5' | 'CRIT-6';
+export type ActionQualiopiFormation = 'TAXI' | 'VTC' | 'VMDTR' | 'ANGLAIS' | 'FRANCAIS_FLE' | 'GRANDE_REMISE';
+
+export interface ActionQualiopi {
+  id: string;
+  indicateur: ActionQualiopiIndicateur;
+  formation: ActionQualiopiFormation | null;
+  titre: string;
+  description: string | null;
+  responsable: string | null;
+  date_echeance: string | null;
+  statut: ActionQualiopiStatut;
+  priorite: ActionQualiopiPriorite;
+  preuve: string | null;
+  preuve_fichier_url: string | null;
+  source_veille_semaine: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+export interface ActionQualiopiWithHistory extends ActionQualiopi {
+  history: ActionQualiopiHistoryRow[];
+}
+
+export interface ActionQualiopiHistoryRow {
+  id: string;
+  action_id: string;
+  statut_avant: ActionQualiopiStatut | null;
+  statut_apres: ActionQualiopiStatut;
+  changed_by: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface ActionQualiopiFilters {
+  indicateur?: ActionQualiopiIndicateur;
+  formation?: ActionQualiopiFormation;
+  statut?: ActionQualiopiStatut;
+  priorite?: ActionQualiopiPriorite;
+  q?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface ActionQualiopiDashboardSummary {
+  en_retard_count: number;
+  prioritaires: ActionQualiopi[];
+  prochaines_echeances: ActionQualiopi[];
+}
