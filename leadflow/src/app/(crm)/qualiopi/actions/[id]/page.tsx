@@ -11,6 +11,7 @@ import {
 } from "@/lib/format";
 import { Pencil, Copy, Clock, CheckCircle2, XCircle, AlertCircle, PlayCircle } from "lucide-react";
 import { ActionChangeStatutButton } from "@/components/crm/qualiopi-action-statut-button";
+import { QualiopiPreuveUpload } from "@/components/crm/qualiopi-preuve-upload";
 import type { ActionQualiopiStatut } from "@/lib/db/types";
 
 interface Props { params: Promise<{ id: string }> }
@@ -150,10 +151,15 @@ export default async function ActionDetailPage({ params }: Props) {
                 </div>
               </div>
             )}
-            {action.preuve_fichier_url && (
-              <div className="px-4 py-3 grid grid-cols-3 gap-2">
-                <span className="text-[11px] font-medium text-foreground-muted">Pièce jointe</span>
-                <div className="col-span-2">
+            <div className="px-4 py-3 grid grid-cols-3 gap-2">
+              <span className="text-[11px] font-medium text-foreground-muted">Pièce jointe</span>
+              <div className="col-span-2">
+                {canEdit ? (
+                  <QualiopiPreuveUpload
+                    actionId={action.id}
+                    existingUrl={action.preuve_fichier_url}
+                  />
+                ) : action.preuve_fichier_url ? (
                   <a
                     href={action.preuve_fichier_url}
                     target="_blank"
@@ -162,9 +168,11 @@ export default async function ActionDetailPage({ params }: Props) {
                   >
                     Télécharger
                   </a>
-                </div>
+                ) : (
+                  <span className="text-[12px] text-foreground-subtle">—</span>
+                )}
               </div>
-            )}
+            </div>
             {action.source_veille_semaine && (
               <div className="px-4 py-3 grid grid-cols-3 gap-2">
                 <span className="text-[11px] font-medium text-foreground-muted">Semaine veille</span>

@@ -80,19 +80,32 @@ export async function listActions(filters: ActionQualiopiFilters = {}): Promise<
 }> {
   const { indicateur, formation, statut, priorite, q, page = 1, limit = 25 } = filters;
 
-  const where: Record<string, unknown> = {};
-  if (indicateur) where.indicateur = indicateur;
-  if (formation) where.formation = formation;
-  if (statut && statut !== 'en_retard') {
-    where.statut = statut;
-  }
-  if (priorite) where.priorite = priorite;
+  const today = new Date(new Date().toDateString());
+
+  // ANO-2 fix: filter en_retard at DB level (stored statut OR past deadline)
+  const statutWhere = statut === 'en_retard'
+    ? { OR: [
+        { statut: 'en_retard' },
+        { date_echeance: { lt: today }, statut: { in: ['a_faire', 'en_cours'] } },
+      ]}
+    : statut
+      ? { statut }
+      : undefined;
+
+  const baseWhere: Record<string, unknown> = {};
+  if (indicateur) baseWhere.indicateur = indicateur;
+  if (formation) baseWhere.formation = formation;
+  if (priorite) baseWhere.priorite = priorite;
   if (q) {
-    where.OR = [
+    baseWhere.OR = [
       { titre: { contains: q, mode: 'insensitive' } },
       { description: { contains: q, mode: 'insensitive' } },
     ];
   }
+
+  const where = statutWhere
+    ? { AND: [baseWhere, statutWhere] }
+    : baseWhere;
 
   const [rows, total] = await Promise.all([
     prisma.actionQualiopi.findMany({
@@ -104,14 +117,7 @@ export async function listActions(filters: ActionQualiopiFilters = {}): Promise<
     prisma.actionQualiopi.count({ where }),
   ]);
 
-  let actions = rows.map(mapRow);
-
-  // Apply en_retard filter after lazy computation
-  if (statut === 'en_retard') {
-    actions = actions.filter((a) => a.statut === 'en_retard');
-  }
-
-  return { actions, total };
+  return { actions: rows.map(mapRow), total };
 }
 
 // ─── Get one ───────────────────────────────────────────────────────────────────
